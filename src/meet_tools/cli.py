@@ -267,10 +267,47 @@ def pack(
         console.print(f"[bold red]Error al empaquetar:[/bold red] {e}")
 
 
+@app.command()
+def sign(
+    api_key: Optional[str] = typer.Option(None, "--api-key", "-k", help="API Key (JWT issuer) de Mozilla AMO"),
+    api_secret: Optional[str] = typer.Option(None, "--api-secret", "-s", help="API Secret de Mozilla AMO"),
+    channel: str = typer.Option("unlisted", "--channel", "-c", help="Canal de distribución: unlisted o listed"),
+    out_dir: str = typer.Option("dist", "--out-dir", "-o", help="Directorio destino para el .xpi firmado"),
+    lint_only: bool = typer.Option(False, "--lint-only", help="Solo validar compatibilidad y manifiesto con web-ext lint"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Verificar manifiesto e imprimir el comando web-ext sign sin enviar"),
+):
+    """Valida y firma digitalmente el addon para Firefox utilizando Mozilla web-ext."""
+    from pathlib import Path
+    from meet_tools.signer import sign_firefox_addon
+
+    try:
+        res = sign_firefox_addon(
+            output_dir=Path(out_dir),
+            api_key=api_key,
+            api_secret=api_secret,
+            channel=channel,
+            lint_only=lint_only,
+            dry_run=dry_run
+        )
+        if dry_run:
+            console.print("[bold yellow]Modo Dry-Run activo:[/bold yellow]")
+            console.print(f"Comando planificado: [cyan]{res['command']}[/cyan]")
+            console.print(f"Credenciales detectadas: {'[green]Sí[/green]' if res['credentials_present'] else '[red]No[/red]'}")
+        elif lint_only:
+            console.print("[bold green]✓ Validación web-ext lint superada con éxito.[/bold green]")
+            if res.get("lint_output"):
+                console.print(f"[dim]{res['lint_output']}[/dim]")
+        else:
+            console.print(f"[bold green]✓ Addon firmado exitosamente:[/bold green] [cyan]{res['signed_file']}[/cyan]")
+    except Exception as e:
+        console.print(f"[bold red]Error durante firma con web-ext:[/bold red] {e}")
+
+
 def main():
     app()
 
 
 if __name__ == "__main__":
     main()
+
 
