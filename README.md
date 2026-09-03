@@ -157,3 +157,21 @@ El proyecto cuenta con una suite completa de pruebas unitarias y de integración
 ```bash
 uv run pytest -v
 ```
+
+---
+
+## 📦 Empaquetado para Chrome y Firefox
+
+Para empaquetar la extensión lista para cargar o distribuir:
+
+```bash
+uv run meet-tools pack
+```
+
+Opciones:
+- `--target` / `-t`: `both` (por defecto), `chrome` o `firefox`.
+- `--out-dir` / `-o`: Directorio de salida (por defecto `dist/`).
+
+Archivos generados en `dist/`:
+- **`meet-bridge-chrome-v1.1.0.zip`**: Manifiesto optimizado para Chromium.
+- **`meet-bridge-firefox-v1.1.0.xpi`**: Manifiesto adaptado para Firefox MV3 con `browser_specific_settings.gecko`.
