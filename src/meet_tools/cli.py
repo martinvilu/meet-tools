@@ -250,9 +250,27 @@ def mock_tab(
         console.print(f"[bold red]Error en pestaña simulada:[/bold red] {e}")
 
 
+@app.command()
+def pack(
+    target: str = typer.Option("both", "--target", "-t", help="Navegador objetivo: chrome, firefox o both"),
+    out_dir: str = typer.Option("dist", "--out-dir", "-o", help="Directorio de salida para los paquetes"),
+):
+    """Empaqueta la extensión WebExtensions para Chrome (.zip) y Firefox (.xpi)."""
+    from pathlib import Path
+    from meet_tools.packer import package_extension
+
+    try:
+        res = package_extension(target=target, output_dir=Path(out_dir))
+        for tgt, p in res.items():
+            console.print(f"[bold green]✓ Paquete generado ({tgt}):[/bold green] [cyan]{p}[/cyan]")
+    except Exception as e:
+        console.print(f"[bold red]Error al empaquetar:[/bold red] {e}")
+
+
 def main():
     app()
 
 
 if __name__ == "__main__":
     main()
+
