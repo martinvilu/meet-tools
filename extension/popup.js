@@ -62,6 +62,13 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    if (!pin) {
+      statusMsg.textContent = "El PIN es obligatorio para conectar.";
+      statusMsg.className = "status-msg error";
+      pinInput.focus();
+      return;
+    }
+
     if (chrome.storage && chrome.storage.sync) {
       chrome.storage.sync.set({
         daemonHost: host,

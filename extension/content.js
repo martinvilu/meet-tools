@@ -214,6 +214,136 @@
     }
   }
 
+  let configPillElement = null;
+
+  function renderConfigPill(connected = false, label = "Configurar PIN") {
+    if (!document.body) return;
+    if (!configPillElement) {
+      configPillElement = document.createElement("div");
+      configPillElement.id = "meet-bridge-config-pill";
+      configPillElement.className = "meet-bridge-config-pill";
+      configPillElement.title = "Hacé click para cambiar o configurar el PIN de Meet Bridge";
+      configPillElement.onclick = showMeetPinModal;
+
+      const icon = document.createElement("span");
+      icon.className = "pill-icon";
+      icon.textContent = "🎙️";
+
+      const dot = document.createElement("span");
+      dot.className = "pill-dot" + (connected ? " connected" : "");
+      dot.id = "meet-bridge-pill-dot";
+
+      const text = document.createElement("span");
+      text.id = "meet-bridge-pill-text";
+      text.textContent = `Meet Bridge: ${label}`;
+
+      configPillElement.appendChild(icon);
+      configPillElement.appendChild(dot);
+      configPillElement.appendChild(text);
+      document.body.appendChild(configPillElement);
+    } else {
+      const dot = document.getElementById("meet-bridge-pill-dot");
+      if (dot) dot.className = "pill-dot" + (connected ? " connected" : "");
+      const text = document.getElementById("meet-bridge-pill-text");
+      if (text) text.textContent = `Meet Bridge: ${label}`;
+    }
+  }
+
+  function showMeetPinModal() {
+    let backdrop = document.getElementById("meet-bridge-pin-modal");
+    if (backdrop) return;
+
+    backdrop = document.createElement("div");
+    backdrop.id = "meet-bridge-pin-modal";
+    backdrop.className = "meet-bridge-modal-backdrop";
+
+    const modal = document.createElement("div");
+    modal.className = "meet-bridge-modal";
+
+    const h3 = document.createElement("h3");
+    h3.textContent = "Meet Bridge - Configurar PIN";
+
+    const p = document.createElement("p");
+    p.textContent = "Ingresá el PIN mostrado en la consola del daemon para habilitar el control externo de Google Meet.";
+
+    const form = document.createElement("div");
+    form.className = "meet-bridge-pin-form";
+
+    const row = document.createElement("div");
+    row.className = "meet-bridge-pin-input-row";
+
+    const pinInput = document.createElement("input");
+    pinInput.type = "text";
+    pinInput.className = "meet-bridge-pin-input";
+    pinInput.placeholder = "Ej: 1234";
+    pinInput.maxLength = 12;
+    pinInput.value = daemonPin || "";
+
+    const saveBtn = document.createElement("button");
+    saveBtn.type = "button";
+    saveBtn.className = "meet-bridge-save-pin-btn";
+    saveBtn.textContent = "Guardar PIN";
+
+    const statusMsg = document.createElement("div");
+    statusMsg.className = "meet-bridge-pin-status";
+
+    saveBtn.onclick = () => {
+      const val = pinInput.value.trim();
+      if (!val) {
+        statusMsg.textContent = "El PIN no puede estar vacío";
+        statusMsg.className = "meet-bridge-pin-status error";
+        pinInput.focus();
+        return;
+      }
+
+      if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.sync) {
+        chrome.storage.sync.set({ daemonPin: val }, () => {
+          daemonPin = val;
+          statusMsg.textContent = "PIN guardado. Reconectando...";
+          statusMsg.className = "meet-bridge-pin-status success";
+          renderConfigPill(false, "Reconectando...");
+
+          if (ws) {
+            ws.close();
+          } else {
+            connectToDaemon();
+          }
+
+          setTimeout(() => {
+            if (backdrop) backdrop.remove();
+          }, 800);
+        });
+      } else {
+        daemonPin = val;
+        statusMsg.textContent = "PIN actualizado.";
+        statusMsg.className = "meet-bridge-pin-status success";
+        if (ws) ws.close(); else connectToDaemon();
+        setTimeout(() => {
+          if (backdrop) backdrop.remove();
+        }, 800);
+      }
+    };
+
+    row.appendChild(pinInput);
+    row.appendChild(saveBtn);
+    form.appendChild(row);
+    form.appendChild(statusMsg);
+
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "meet-bridge-close-btn";
+    closeBtn.textContent = "Cerrar";
+    closeBtn.onclick = () => backdrop.remove();
+
+    modal.appendChild(h3);
+    modal.appendChild(p);
+    modal.appendChild(form);
+    modal.appendChild(closeBtn);
+    backdrop.appendChild(modal);
+
+    document.body.appendChild(backdrop);
+    pinInput.focus();
+  }
+
   // ---------------------------------------------------------------------------
   // Acciones y Manejadores de Comandos
   // ---------------------------------------------------------------------------
@@ -367,8 +497,9 @@
       return;
     }
 
-    if (msg.type === "error" && msg.payload?.code === "ERR_INVALID_PIN") {
-      showOverlayAlert("Meet Bridge: PIN de emparejamiento incorrecto. Verificá la configuración.", "error", 6);
+    if (msg.type === "error" && (msg.payload?.code === "ERR_INVALID_PIN" || msg.payload?.code === "ERR_PAIRING_REQUIRED")) {
+      showOverlayAlert("Meet Bridge: PIN incorrecto o no emparejado. Hacé click abajo para ingresar el PIN.", "error", 6);
+      renderConfigPill(false, "PIN inválido");
       if (ws) ws.close();
       return;
     }
@@ -447,10 +578,18 @@
   }
 
   function connectToDaemon() {
+    if (!daemonPin) {
+      isConnected = false;
+      console.log("[MeetBridge] Conexión en espera: PIN no configurado.");
+      renderConfigPill(false, "Configurar PIN");
+      return;
+    }
+
     const wsUrl = `ws://${daemonHost}:${daemonPort}`;
     try {
       ws = new WebSocket(wsUrl);
     } catch (e) {
+      renderConfigPill(false, "Desconectado");
       setTimeout(connectToDaemon, RECONNECT_INTERVAL_MS);
       return;
     }
@@ -458,6 +597,7 @@
     ws.onopen = function () {
       isConnected = true;
       console.log("[MeetBridge] Conectado al daemon en", wsUrl);
+      renderConfigPill(true, "Conectado");
 
       // Registrar pestaña
       const regMsg = {
@@ -483,7 +623,10 @@
     ws.onclose = function () {
       isConnected = false;
       ws = null;
-      setTimeout(connectToDaemon, RECONNECT_INTERVAL_MS);
+      renderConfigPill(false, daemonPin ? "Desconectado" : "Configurar PIN");
+      if (daemonPin) {
+        setTimeout(connectToDaemon, RECONNECT_INTERVAL_MS);
+      }
     };
 
     ws.onerror = function () {
@@ -527,7 +670,12 @@
         daemonPort = parseInt(msg.port, 10) || daemonPort;
         daemonPin = msg.pin !== undefined ? String(msg.pin).trim() : daemonPin;
         console.log("[MeetBridge] Nueva configuración recibida. Reconectando a", daemonHost, daemonPort);
-        if (ws) ws.close();
+        renderConfigPill(false, daemonPin ? "Reconectando..." : "Configurar PIN");
+        if (ws) {
+          ws.close();
+        } else {
+          connectToDaemon();
+        }
         sendResponse({ status: "ok" });
         return true;
       }
@@ -537,6 +685,14 @@
   // ---------------------------------------------------------------------------
   // Inicialización y Observadores del DOM
   // ---------------------------------------------------------------------------
+
+  if (document.body) {
+    renderConfigPill(false, "Configurar PIN");
+  } else {
+    window.addEventListener("DOMContentLoaded", () => {
+      renderConfigPill(false, "Configurar PIN");
+    });
+  }
 
   loadConfigAndConnect();
 

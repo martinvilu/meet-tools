@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import random
 from typing import Any, Dict, Optional, Set
 import websockets
 from websockets.asyncio.server import Server, serve
@@ -38,12 +39,19 @@ class TabSession:
 class MeetDaemon:
     """Servidor concentrador y enrutador de comandos con bloqueo por ambigüedad de sesiones."""
 
-    def __init__(self, host: str = "0.0.0.0", port: int = 8765, command_timeout: float = 2.5, pin: Optional[str] = None, require_pin: bool = False):
+    def __init__(
+        self,
+        host: str = "0.0.0.0",
+        port: int = 8765,
+        command_timeout: float = 2.5,
+        pin: Optional[str] = None,
+        require_pin: bool = False,
+    ):
         self.host = host
         self.port = port
         self.command_timeout = command_timeout
-        self.pin = pin
         self.require_pin = require_pin or bool(pin)
+        self.pin = pin or (f"{random.randint(1000, 9999)}" if self.require_pin else None)
 
         self._server: Optional[Server] = None
         self._tabs: Dict[str, TabSession] = {}
@@ -72,7 +80,8 @@ class MeetDaemon:
 
     async def start(self) -> None:
         """Inicia el servidor WebSocket concentrador."""
-        logger.info(f"Iniciando MeetDaemon en ws://{self.host}:{self.port}")
+        pin_info = f" (PIN: {self.pin})" if self.pin else ""
+        logger.info(f"Iniciando MeetDaemon en ws://{self.host}:{self.port}{pin_info}")
         self._server = await serve(self._handle_connection, self.host, self.port)
 
     async def stop(self) -> None:
@@ -151,6 +160,12 @@ class MeetDaemon:
                 tab.tab_state = tab_state
                 tab.in_call = in_call
             await self._evaluate_concurrency_lock()
+            return
+
+        if self.require_pin and websocket not in self._authenticated_sockets:
+            logger.warning("Mensaje de extensión rechazado: socket no autenticado mediante PIN.")
+            err = Message.error("Extensión no autenticada mediante PIN.", ErrorCode.ERR_PAIRING_REQUIRED)
+            await websocket.send(err.to_json())
             return
 
         if msg.action == Action.STATE_SYNC.value:

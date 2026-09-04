@@ -21,7 +21,8 @@ def daemon(
     host: str = typer.Option("0.0.0.0", "--host", "-h", help="Dirección IP de escucha (0.0.0.0 para LAN y loopback)"),
     port: int = typer.Option(8765, "--port", "-p", help="Puerto TCP para el servidor WebSocket"),
     timeout: float = typer.Option(2.5, "--timeout", "-t", help="Timeout para ack de extensión (segundos)"),
-    pin: Optional[str] = typer.Option(None, "--pin", help="PIN de seguridad para autenticar conexiones"),
+    pin: Optional[str] = typer.Option(None, "--pin", help="PIN de seguridad de 4 dígitos (si se omite, se genera aleatorio)"),
+    no_pin: bool = typer.Option(False, "--no-pin", help="Desactivar requerimiento de PIN (modo permisivo)"),
 ):
     """Inicia el daemon concentrador WebSocket en primer plano."""
     logging.basicConfig(
@@ -29,7 +30,9 @@ def daemon(
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
     )
 
-    pin_info = f"PIN Requerido: [bold yellow]{pin}[/bold yellow]\n" if pin else "PIN: [dim]Deshabilitado[/dim]\n"
+    server = MeetDaemon(host=host, port=port, command_timeout=timeout, pin=pin, require_pin=not no_pin)
+
+    pin_info = f"PIN de Emparejamiento: [bold yellow]{server.pin}[/bold yellow] {'(Opcional)' if no_pin else '(Requerido)'}\n"
     console.print(Panel.fit(
         f"[bold cyan]Meet Daemon Concentrador v1.1[/bold cyan]\n"
         f"Escuchando en: [bold green]ws://{host}:{port}[/bold green]\n"
@@ -38,8 +41,6 @@ def daemon(
         f"Conexión LAN (Android/HW): [dim]ws://<IP_LOCAL>:{port}[/dim]",
         border_style="cyan"
     ))
-
-    server = MeetDaemon(host=host, port=port, command_timeout=timeout, pin=pin)
 
     async def _run():
         await server.start()
