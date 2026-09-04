@@ -6,7 +6,9 @@
 (function () {
   "use strict";
 
-  const DAEMON_WS_URL = "ws://127.0.0.1:8765";
+  let daemonHost = "127.0.0.1";
+  let daemonPort = 8765;
+  let daemonPin = "";
   const RECONNECT_INTERVAL_MS = 3000;
   const STATE_CHECK_INTERVAL_MS = 800;
   const PERMISSION_TIMEOUT_MS = 300;
@@ -365,6 +367,12 @@
       return;
     }
 
+    if (msg.type === "error" && msg.payload?.code === "ERR_INVALID_PIN") {
+      showOverlayAlert("Meet Bridge: PIN de emparejamiento incorrecto. Verificá la configuración.", "error", 6);
+      if (ws) ws.close();
+      return;
+    }
+
     if (msg.action === "SHOW_ALERT") {
       const alertMsg = msg.payload?.message || "Control externo suspendido: múltiples reuniones activas abiertas.";
       showLockBanner(alertMsg);
@@ -439,8 +447,9 @@
   }
 
   function connectToDaemon() {
+    const wsUrl = `ws://${daemonHost}:${daemonPort}`;
     try {
-      ws = new WebSocket(DAEMON_WS_URL);
+      ws = new WebSocket(wsUrl);
     } catch (e) {
       setTimeout(connectToDaemon, RECONNECT_INTERVAL_MS);
       return;
@@ -448,7 +457,7 @@
 
     ws.onopen = function () {
       isConnected = true;
-      console.log("[MeetBridge] Conectado al daemon local en", DAEMON_WS_URL);
+      console.log("[MeetBridge] Conectado al daemon en", wsUrl);
 
       // Registrar pestaña
       const regMsg = {
@@ -459,7 +468,8 @@
         payload: {
           tabId: tabId,
           tabState: isInCall() ? "in_call" : "lobby",
-          url: window.location.href
+          url: window.location.href,
+          pin: daemonPin
         }
       };
       ws.send(JSON.stringify(regMsg));
@@ -481,11 +491,54 @@
     };
   }
 
+  function loadConfigAndConnect() {
+    if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.sync) {
+      chrome.storage.sync.get(["daemonHost", "daemonPort", "daemonPin"], (res) => {
+        if (chrome.runtime.lastError || !res) {
+          connectToDaemon();
+          return;
+        }
+        if (res.daemonHost) daemonHost = res.daemonHost.trim();
+        if (res.daemonPort) daemonPort = parseInt(res.daemonPort, 10);
+        if (res.daemonPin !== undefined) daemonPin = String(res.daemonPin).trim();
+        connectToDaemon();
+      });
+    } else {
+      connectToDaemon();
+    }
+  }
+
+  // Escucha de mensajes desde el popup de configuración
+  if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.onMessage) {
+    chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+      if (msg.type === "GET_STATUS") {
+        sendResponse({
+          isConnected: isConnected,
+          host: daemonHost,
+          port: daemonPort,
+          pin: daemonPin,
+          tabId: tabId,
+          inCall: isInCall()
+        });
+        return true;
+      }
+      if (msg.type === "CONFIG_UPDATED") {
+        daemonHost = msg.host || daemonHost;
+        daemonPort = parseInt(msg.port, 10) || daemonPort;
+        daemonPin = msg.pin !== undefined ? String(msg.pin).trim() : daemonPin;
+        console.log("[MeetBridge] Nueva configuración recibida. Reconectando a", daemonHost, daemonPort);
+        if (ws) ws.close();
+        sendResponse({ status: "ok" });
+        return true;
+      }
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // Inicialización y Observadores del DOM
   // ---------------------------------------------------------------------------
 
-  connectToDaemon();
+  loadConfigAndConnect();
 
   // Polling periódico de estado
   setInterval(() => {

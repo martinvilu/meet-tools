@@ -2,51 +2,140 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Google Meet External Bridge</title>
+  <title>Meet Bridge - Configuración</title>
   <style>
     body {
-      width: 260px;
+      width: 280px;
       margin: 0;
       padding: 16px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       background-color: #202124;
-      color: #ffffff;
+      color: #e8eaed;
+      box-sizing: border-box;
     }
     h2 {
-      margin: 0 0 8px 0;
-      font-size: 16px;
+      margin: 0 0 12px 0;
+      font-size: 15px;
       display: flex;
       align-items: center;
       gap: 8px;
-    }
-    p {
-      margin: 4px 0;
-      font-size: 13px;
-      color: #9aa0a6;
-    }
-    .status-badge {
-      display: inline-block;
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-size: 12px;
-      font-weight: bold;
-      background-color: #303134;
       color: #8ab4f8;
-      margin-top: 8px;
     }
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      background-color: #303134;
+      font-size: 12px;
+      margin-bottom: 12px;
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: #ea4335;
+    }
+    .dot.connected {
+      background-color: #34a853;
+      box-shadow: 0 0 6px #34a853;
+    }
+    .field {
+      margin-bottom: 10px;
+    }
+    label {
+      display: block;
+      font-size: 11px;
+      color: #9aa0a6;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+    input {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid #5f6368;
+      background-color: #292a2d;
+      color: #ffffff;
+      font-size: 13px;
+      box-sizing: border-box;
+      outline: none;
+    }
+    input:focus {
+      border-color: #8ab4f8;
+    }
+    .row {
+      display: flex;
+      gap: 8px;
+    }
+    .row .field {
+      flex: 1;
+    }
+    button {
+      width: 100%;
+      margin-top: 6px;
+      padding: 9px;
+      border: none;
+      border-radius: 6px;
+      background-color: #1a73e8;
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.15s ease;
+    }
+    button:hover {
+      background-color: #185abc;
+    }
+    .status-msg {
+      margin-top: 8px;
+      font-size: 11px;
+      text-align: center;
+      min-height: 14px;
+    }
+    .status-msg.success { color: #81c995; }
+    .status-msg.error { color: #f28b82; }
     .footer {
       margin-top: 12px;
-      font-size: 11px;
+      font-size: 10px;
       color: #5f6368;
       border-top: 1px solid #3c4043;
       padding-top: 8px;
+      text-align: center;
     }
   </style>
 </head>
 <body>
   <h2><span>🎙️</span> Meet Bridge v1.1</h2>
-  <p>Conecta pestañas de Meet con el concentrador local en <code>ws://127.0.0.1:8765</code>.</p>
-  <div class="status-badge" id="status-badge">Modo pasivo / Activo en meet.google.com</div>
-  <div class="footer">meet-tools • Control bidireccional</div>
+  
+  <div class="status-bar">
+    <div class="dot" id="conn-dot"></div>
+    <span id="conn-text">Desconectado</span>
+  </div>
+
+  <div class="field">
+    <label for="cfg-host">Servidor / Host</label>
+    <input type="text" id="cfg-host" placeholder="127.0.0.1" value="127.0.0.1">
+  </div>
+
+  <div class="row">
+    <div class="field">
+      <label for="cfg-port">Puerto</label>
+      <input type="number" id="cfg-port" placeholder="8765" value="8765" min="1024" max="65535">
+    </div>
+    <div class="field">
+      <label for="cfg-pin">PIN</label>
+      <input type="password" id="cfg-pin" placeholder="Opcional" maxlength="12">
+    </div>
+  </div>
+
+  <button id="btn-save">Guardar y Conectar</button>
+  <div class="status-msg" id="status-msg"></div>
+
+  <div class="footer">meet-tools • Conexión WebSocket Configurable</div>
+
+  <script src="popup.js"></script>
 </body>
 </html>

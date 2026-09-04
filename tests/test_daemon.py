@@ -170,3 +170,66 @@ async def test_permission_denied_event_forwarding(daemon_server):
             ev_recv = Message.from_json(await asyncio.wait_for(client.recv(), timeout=2.0))
             assert ev_recv.action == Action.PERMISSION_DENIED.value
             assert ev_recv.payload["action"] == "MUTE_ALL"
+
+
+@pytest.mark.asyncio
+async def test_daemon_pin_authentication():
+    daemon = MeetDaemon(host="127.0.0.1", port=0, pin="4321", require_pin=True)
+    await daemon.start()
+    port = daemon._server.sockets[0].getsockname()[1]
+    uri = f"ws://127.0.0.1:{port}"
+
+    try:
+        # 1. Extensión con PIN inválido es rechazada
+        async with connect(uri, proxy=None) as ext_bad:
+            await ext_bad.recv()  # saludo
+            reg_bad = Message(
+                source=Source.EXTENSION,
+                type=MessageType.EVENT,
+                action=Action.TAB_REGISTER.value,
+                payload={"tabId": "tab_bad", "pin": "9999"}
+            )
+            await ext_bad.send(reg_bad.to_json())
+            err_raw = await asyncio.wait_for(ext_bad.recv(), timeout=2.0)
+            err = Message.from_json(err_raw)
+            assert err.type == MessageType.ERROR
+            assert err.payload["code"] == ErrorCode.ERR_INVALID_PIN.value
+
+        # 2. Extensión con PIN válido es aceptada
+        async with connect(uri, proxy=None) as ext_good:
+            await ext_good.recv()  # saludo
+            reg_good = Message(
+                source=Source.EXTENSION,
+                type=MessageType.EVENT,
+                action=Action.TAB_REGISTER.value,
+                payload={"tabId": "tab_good", "pin": "4321", "tabState": "in_call"}
+            )
+            await ext_good.send(reg_good.to_json())
+            await asyncio.sleep(0.05)
+
+            # 3. Cliente sin emparejar intenta enviar comando -> ERR_PAIRING_REQUIRED
+            async with connect(uri, proxy=None) as client:
+                await client.recv()  # estado inicial
+                await client.send(Message.command(Action.TOGGLE_MIC).to_json())
+                cmd_err = Message.from_json(await asyncio.wait_for(client.recv(), timeout=2.0))
+                assert cmd_err.type == MessageType.ERROR
+                assert cmd_err.payload["code"] == ErrorCode.ERR_PAIRING_REQUIRED.value
+
+                # 4. Cliente envía PAIR_REQUEST con PIN correcto
+                pair_msg = Message(
+                    source=Source.CLIENT,
+                    type=MessageType.COMMAND,
+                    action=Action.PAIR_REQUEST.value,
+                    payload={"pin": "4321"}
+                )
+                await client.send(pair_msg.to_json())
+                pair_ack = Message.from_json(await asyncio.wait_for(client.recv(), timeout=2.0))
+                assert pair_ack.action == Action.PAIRING_SUCCESS.value
+
+                # 5. Cliente emparejado envía comando exitosamente
+                await client.send(Message.command(Action.TOGGLE_MIC).to_json())
+                fwd = Message.from_json(await asyncio.wait_for(ext_good.recv(), timeout=2.0))
+                assert fwd.action == Action.TOGGLE_MIC.value
+    finally:
+        await daemon.stop()
+

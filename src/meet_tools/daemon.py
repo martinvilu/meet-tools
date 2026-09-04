@@ -38,15 +38,18 @@ class TabSession:
 class MeetDaemon:
     """Servidor concentrador y enrutador de comandos con bloqueo por ambigüedad de sesiones."""
 
-    def __init__(self, host: str = "0.0.0.0", port: int = 8765, command_timeout: float = 2.5):
+    def __init__(self, host: str = "0.0.0.0", port: int = 8765, command_timeout: float = 2.5, pin: Optional[str] = None, require_pin: bool = False):
         self.host = host
         self.port = port
         self.command_timeout = command_timeout
+        self.pin = pin
+        self.require_pin = require_pin or bool(pin)
 
         self._server: Optional[Server] = None
         self._tabs: Dict[str, TabSession] = {}
         self._ws_to_tab_id: Dict[Any, str] = {}
         self._clients: Set[Any] = set()
+        self._authenticated_sockets: Set[Any] = set()
         self._is_locked: bool = False
         self._pending_commands: Dict[str, asyncio.Future] = {}
         self._cmd_counter: int = 0
@@ -117,6 +120,7 @@ class MeetDaemon:
         except websockets.exceptions.ConnectionClosed:
             pass
         finally:
+            self._authenticated_sockets.discard(websocket)
             if client_type == Source.EXTENSION and assigned_tab_id in self._tabs:
                 del self._tabs[assigned_tab_id]
                 self._ws_to_tab_id.pop(websocket, None)
@@ -130,6 +134,15 @@ class MeetDaemon:
         tab = self._tabs.get(tab_id) if tab_id else None
 
         if msg.action == Action.TAB_REGISTER.value:
+            if self.require_pin:
+                ext_pin = str(msg.payload.get("pin", "")).strip()
+                if ext_pin != str(self.pin).strip():
+                    logger.warning("Extensión rechazada: PIN inválido.")
+                    err = Message.error("PIN de emparejamiento incorrecto para la extensión.", ErrorCode.ERR_INVALID_PIN)
+                    await websocket.send(err.to_json())
+                    return
+                self._authenticated_sockets.add(websocket)
+
             new_tab_id = msg.payload.get("tabId", tab_id)
             tab_state = msg.payload.get("tabState", "lobby")
             in_call = tab_state == "in_call"
@@ -177,7 +190,28 @@ class MeetDaemon:
             await self._send_state_to_client(websocket)
             return
 
+        if msg.action == Action.PAIR_REQUEST.value:
+            req_pin = str(msg.payload.get("pin", "")).strip()
+            if not self.require_pin or req_pin == str(self.pin).strip():
+                self._authenticated_sockets.add(websocket)
+                ack = Message(
+                    source=Source.DAEMON,
+                    type=MessageType.EVENT,
+                    action=Action.PAIRING_SUCCESS.value,
+                    payload={"status": "ok"}
+                )
+                await websocket.send(ack.to_json())
+            else:
+                err = Message.error("PIN de emparejamiento incorrecto.", ErrorCode.ERR_INVALID_PIN)
+                await websocket.send(err.to_json())
+            return
+
         if msg.type == MessageType.COMMAND:
+            if self.require_pin and websocket not in self._authenticated_sockets:
+                err = Message.error("Emparejamiento requerido mediante PIN.", ErrorCode.ERR_PAIRING_REQUIRED)
+                await websocket.send(err.to_json())
+                return
+
             # 1. Verificar bloqueo por múltiples llamadas
             if self._is_locked:
                 err = Message.error(
