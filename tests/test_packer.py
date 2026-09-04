@@ -41,3 +41,5 @@ def test_package_extension_chrome_and_firefox(tmp_path):
         assert "browser_specific_settings" in ff_manifest
         assert "gecko" in ff_manifest["browser_specific_settings"]
         assert ff_manifest["browser_specific_settings"]["gecko"]["id"] == "meet-bridge@local.dev"
+        assert ff_manifest["browser_specific_settings"]["gecko"]["data_collection_permissions"]["required"] == ["none"]
+

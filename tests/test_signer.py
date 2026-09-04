@@ -18,6 +18,8 @@ def test_prepare_staging_manifest(tmp_path):
     with open(staging / "manifest.json") as f:
         data = json.load(f)
     assert data["browser_specific_settings"]["gecko"]["id"] == "test-meet@domain.com"
+    assert data["browser_specific_settings"]["gecko"]["strict_min_version"] == "142.0"
+    assert data["browser_specific_settings"]["gecko"]["data_collection_permissions"]["required"] == ["none"]
 
 
 def test_web_ext_lint_passes(tmp_path):
