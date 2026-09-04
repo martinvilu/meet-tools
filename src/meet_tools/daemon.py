@@ -8,6 +8,13 @@ from typing import Any, Dict, Optional, Set
 import websockets
 from websockets.asyncio.server import Server, serve
 
+from meet_tools.discovery import (
+    MdnsPublisher,
+    build_pairing_uri,
+    generate_qr_ascii,
+    generate_qr_svg,
+    get_local_ip,
+)
 from meet_tools.protocol import (
     Action,
     ErrorCode,
@@ -46,12 +53,33 @@ class MeetDaemon:
         command_timeout: float = 2.5,
         pin: Optional[str] = None,
         require_pin: bool = False,
+        enable_mdns: bool = True,
     ):
         self.host = host
         self.port = port
         self.command_timeout = command_timeout
         self.require_pin = require_pin or bool(pin)
         self.pin = pin or (f"{random.randint(1000, 9999)}" if self.require_pin else None)
+        self.enable_mdns = enable_mdns
+
+        self.lan_ip = get_local_ip() if self.host in ("0.0.0.0", "") else self.host
+        self.pairing_uri = build_pairing_uri("meet", self.lan_ip, self.port, str(self.pin or ""))
+        self.qr_ascii = generate_qr_ascii(self.pairing_uri)
+        self.qr_svg = generate_qr_svg(self.pairing_uri)
+
+        self._mdns_publisher: Optional[MdnsPublisher] = None
+        if self.enable_mdns and self.port > 0:
+            self._mdns_publisher = MdnsPublisher(
+                service_name=f"MeetBridge-{self.pin or 'open'}",
+                service_type="_meet-bridge._tcp.local.",
+                port=self.port,
+                properties={
+                    "service": "meet",
+                    "version": "1.1.0",
+                    "requires_pin": "1" if self.require_pin else "0",
+                },
+                host_ip=self.lan_ip,
+            )
 
         self._server: Optional[Server] = None
         self._tabs: Dict[str, TabSession] = {}
@@ -61,7 +89,13 @@ class MeetDaemon:
         self._is_locked: bool = False
         self._pending_commands: Dict[str, asyncio.Future] = {}
         self._cmd_counter: int = 0
-        self._latest_consolidated_state: StateSyncPayload = StateSyncPayload(inCall=False, locked=False)
+        self._latest_consolidated_state: StateSyncPayload = StateSyncPayload(
+            inCall=False,
+            locked=False,
+            pin=self.pin,
+            pairingUri=self.pairing_uri,
+            qrSvg=self.qr_svg,
+        )
 
     @property
     def is_locked(self) -> bool:
@@ -79,14 +113,18 @@ class MeetDaemon:
         return None
 
     async def start(self) -> None:
-        """Inicia el servidor WebSocket concentrador."""
+        """Inicia el servidor WebSocket concentrador y mDNS."""
         pin_info = f" (PIN: {self.pin})" if self.pin else ""
         logger.info(f"Iniciando MeetDaemon en ws://{self.host}:{self.port}{pin_info}")
         self._server = await serve(self._handle_connection, self.host, self.port)
+        if self._mdns_publisher:
+            await self._mdns_publisher.start()
 
     async def stop(self) -> None:
-        """Detiene el servidor y cierra todas las conexiones activas."""
+        """Detiene el servidor, mDNS y cierra todas las conexiones activas."""
         logger.info("Deteniendo MeetDaemon...")
+        if self._mdns_publisher:
+            await self._mdns_publisher.stop()
         if self._server:
             self._server.close()
             await self._server.wait_closed()
@@ -169,7 +207,11 @@ class MeetDaemon:
             return
 
         if msg.action == Action.STATE_SYNC.value:
-            state_data = StateSyncPayload(**msg.payload)
+            incoming_payload = dict(msg.payload)
+            incoming_payload["pin"] = self.pin
+            incoming_payload["pairingUri"] = self.pairing_uri
+            incoming_payload["qrSvg"] = self.qr_svg
+            state_data = StateSyncPayload(**incoming_payload)
             if tab:
                 tab.update_from_state(state_data)
             await self._evaluate_concurrency_lock()
@@ -316,8 +358,17 @@ class MeetDaemon:
                 if tab and tab.latest_state:
                     self._latest_consolidated_state = tab.latest_state
                     self._latest_consolidated_state.locked = False
+                    self._latest_consolidated_state.pin = self.pin
+                    self._latest_consolidated_state.pairingUri = self.pairing_uri
+                    self._latest_consolidated_state.qrSvg = self.qr_svg
             else:
-                self._latest_consolidated_state = StateSyncPayload(inCall=False, locked=False)
+                self._latest_consolidated_state = StateSyncPayload(
+                    inCall=False,
+                    locked=False,
+                    pin=self.pin,
+                    pairingUri=self.pairing_uri,
+                    qrSvg=self.qr_svg,
+                )
 
             state_msg = Message.state_sync(self._latest_consolidated_state, source=Source.DAEMON)
             await self._broadcast_to_clients(state_msg)
@@ -328,6 +379,9 @@ class MeetDaemon:
         state.locked = self._is_locked
         if not self._is_locked and self.active_tabs_count == 0:
             state.inCall = False
+        state.pin = self.pin
+        state.pairingUri = self.pairing_uri
+        state.qrSvg = self.qr_svg
         msg = Message.state_sync(state, source=Source.DAEMON)
         try:
             await websocket.send(msg.to_json())

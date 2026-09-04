@@ -70,6 +70,9 @@ class StateSyncPayload(BaseModel):
     isHost: bool = False
     locked: bool = False
     tabId: Optional[str] = None
+    pin: Optional[str] = None
+    pairingUri: Optional[str] = None
+    qrSvg: Optional[str] = None
 
 
 class LeaveCallPayload(BaseModel):
