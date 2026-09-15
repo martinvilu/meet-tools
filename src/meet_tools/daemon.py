@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import random
+import time
 from typing import Any, Dict, Optional, Set
 import websockets
 from websockets.asyncio.server import Server, serve
@@ -38,9 +39,9 @@ class TabSession:
         self.latest_state: Optional[StateSyncPayload] = None
 
     def update_from_state(self, state: StateSyncPayload) -> None:
+        self.latest_state = state
         self.in_call = state.inCall
         self.tab_state = "in_call" if state.inCall else "lobby"
-        self.latest_state = state
 
 
 class MeetDaemon:
@@ -48,7 +49,7 @@ class MeetDaemon:
 
     def __init__(
         self,
-        host: str = "0.0.0.0",
+        host: str = "127.0.0.1",
         port: int = 8765,
         command_timeout: float = 2.5,
         pin: Optional[str] = None,
@@ -89,6 +90,7 @@ class MeetDaemon:
         self._is_locked: bool = False
         self._pending_commands: Dict[str, asyncio.Future] = {}
         self._cmd_counter: int = 0
+        self._failed_pin_attempts: Dict[str, list] = {}
         self._latest_consolidated_state: StateSyncPayload = StateSyncPayload(
             inCall=False,
             locked=False,
@@ -248,8 +250,23 @@ class MeetDaemon:
             return
 
         if msg.action == Action.PAIR_REQUEST.value:
+            remote_addr = getattr(websocket, "remote_address", None)
+            client_ip = remote_addr[0] if (remote_addr and isinstance(remote_addr, (list, tuple))) else "127.0.0.1"
+
+            now = time.time()
+            attempts = [t for t in self._failed_pin_attempts.get(client_ip, []) if now - t < 60]
+            self._failed_pin_attempts[client_ip] = attempts
+
+            if len(attempts) >= 5:
+                logger.warning(f"Intento de emparejamiento bloqueado por rate limit para {client_ip}")
+                err = Message.error("Demasiados intentos fallidos de PIN. Intente nuevamente más tarde.", ErrorCode.ERR_INVALID_PIN)
+                await websocket.send(err.to_json())
+                return
+
             req_pin = str(msg.payload.get("pin", "")).strip()
             if not self.require_pin or req_pin == str(self.pin).strip():
+                if client_ip in self._failed_pin_attempts:
+                    del self._failed_pin_attempts[client_ip]
                 self._authenticated_sockets.add(websocket)
                 ack = Message(
                     source=Source.DAEMON,
@@ -259,6 +276,8 @@ class MeetDaemon:
                 )
                 await websocket.send(ack.to_json())
             else:
+                self._failed_pin_attempts.setdefault(client_ip, []).append(now)
+                await asyncio.sleep(1.0)
                 err = Message.error("PIN de emparejamiento incorrecto.", ErrorCode.ERR_INVALID_PIN)
                 await websocket.send(err.to_json())
             return

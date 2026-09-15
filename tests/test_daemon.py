@@ -233,3 +233,41 @@ async def test_daemon_pin_authentication():
     finally:
         await daemon.stop()
 
+
+@pytest.mark.asyncio
+async def test_daemon_pin_rate_limiting():
+    daemon = MeetDaemon(host="127.0.0.1", port=0, require_pin=True, pin="4321")
+    await daemon.start()
+    port = daemon._server.sockets[0].getsockname()[1]
+    uri = f"ws://127.0.0.1:{port}"
+
+    try:
+        async with connect(uri, proxy=None) as client:
+            await client.recv()  # drain initial state
+            # Send 5 incorrect PIN attempts
+            for i in range(5):
+                bad_req = Message(
+                    source=Source.CLIENT,
+                    type=MessageType.COMMAND,
+                    action=Action.PAIR_REQUEST.value,
+                    payload={"pin": f"000{i}"},
+                )
+                await client.send(bad_req.to_json())
+                resp = Message.from_json(await asyncio.wait_for(client.recv(), timeout=3.0))
+                assert resp.type == MessageType.ERROR
+                assert resp.payload["code"] == ErrorCode.ERR_INVALID_PIN.value
+
+            # 6th attempt: should be blocked by rate limit
+            bad_req = Message(
+                source=Source.CLIENT,
+                type=MessageType.COMMAND,
+                action=Action.PAIR_REQUEST.value,
+                payload={"pin": "4321"},
+            )
+            await client.send(bad_req.to_json())
+            blocked_resp = Message.from_json(await asyncio.wait_for(client.recv(), timeout=2.0))
+            assert blocked_resp.type == MessageType.ERROR
+            assert "Demasiados intentos" in blocked_resp.payload["reason"]
+    finally:
+        await daemon.stop()
+

@@ -18,7 +18,7 @@ console = Console()
 
 @app.command()
 def daemon(
-    host: str = typer.Option("0.0.0.0", "--host", "-h", help="Dirección IP de escucha (0.0.0.0 para LAN y loopback)"),
+    host: str = typer.Option("127.0.0.1", "--host", "-h", help="Dirección IP de escucha (127.0.0.1 por defecto; 0.0.0.0 para LAN y loopback)"),
     port: int = typer.Option(8765, "--port", "-p", help="Puerto TCP para el servidor WebSocket"),
     timeout: float = typer.Option(2.5, "--timeout", "-t", help="Timeout para ack de extensión (segundos)"),
     pin: Optional[str] = typer.Option(None, "--pin", help="PIN de seguridad de 4 dígitos (si se omite, se genera aleatorio)"),
