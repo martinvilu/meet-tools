@@ -3,10 +3,27 @@ name = "meet-tools"
 version = "1.1.0"
 description = "Sistema de control y monitoreo externo para Google Meet mediante WebExtensions y daemon concentrador."
 readme = "README.md"
+license = {text = "GPL-3.0-or-later"}
 authors = [
-    { name = "Martín René", email = "martinvilu@gmail.com" }
+    {name = "Martín René Vilugrón", email = "martinvilu@gmail.com"}
 ]
-requires-python = ">=3.10"
+maintainers = [
+    {name = "Programación I [B6003] - UNRN Andina"}
+]
+requires-python = ">=3.11"
+keywords = ["education", "c-programming", "pedagogical-tools", "unrn"]
+
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Education",
+    "Topic :: Software Development :: Quality Assurance",
+]
+
 dependencies = [
     "pydantic>=2.0.0",
     "qrcode>=8.2",
@@ -25,6 +42,11 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/meet_tools"]
+
+[project.urls]
+Homepage = "https://github.com/INGCOM-UNRN-P1/meet-tools"
+Repository = "https://github.com/INGCOM-UNRN-P1/meet-tools.git"
+Issues = "https://github.com/INGCOM-UNRN-P1/meet-tools/issues"
 
 [dependency-groups]
 dev = [
