@@ -84,3 +84,16 @@ def test_cli_mic_command_no_call(thread_daemon):
     res = runner.invoke(app, ["mic", "--uri", uri])
     assert res.exit_code == 0
     assert "ERR_NO_ACTIVE_CALL" in res.stdout
+
+
+def test_cli_doctor():
+    res = runner.invoke(app, ["doctor"])
+    assert res.exit_code == 0
+    assert "Diagnóstico del Entorno MEET-TOOLS" in res.stdout
+
+    res_json = runner.invoke(app, ["doctor", "--json"])
+    assert res_json.exit_code == 0
+    assert '"schema_version": "1.0.0"' in res_json.stdout
+    assert '"herramienta": "meet-tools"' in res_json.stdout
+    assert '"ok": true' in res_json.stdout
+
