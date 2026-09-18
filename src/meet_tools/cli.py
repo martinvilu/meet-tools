@@ -16,6 +16,23 @@ app = typer.Typer(help="Sistema de control externo para Google Meet.", no_args_i
 console = Console()
 
 
+def _version_callback(value: bool) -> None:
+    if value:
+        from meet_tools import __version__
+        console.print(f"[bold cyan]MEET[/bold cyan] versión [bold]{__version__}[/bold]")
+        raise typer.Exit(code=0)
+
+
+@app.callback()
+def main_callback(
+    version: Optional[bool] = typer.Option(
+        None, "--version", "-v", help="Muestra la versión y termina.",
+        callback=_version_callback, is_eager=True,
+    ),
+) -> None:
+    """Opciones globales."""
+
+
 @app.command()
 def daemon(
     host: str = typer.Option("127.0.0.1", "--host", "-h", help="Dirección IP de escucha (127.0.0.1 por defecto; 0.0.0.0 para LAN y loopback)"),
