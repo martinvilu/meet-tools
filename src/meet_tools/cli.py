@@ -12,6 +12,18 @@ from meet_tools.client import MeetClient
 from meet_tools.daemon import MeetDaemon
 from meet_tools.protocol import Action, ErrorCode, Message, MessageType, Source, StateSyncPayload
 
+
+JSON_SCHEMA_VERSION = "1.0.0"
+
+
+def _emit_json(datos: dict, err: bool = False) -> None:
+    """Una línea JSON con `schema_version` y `herramienta` (contrato para consumidores externos)."""
+    import json
+    import sys
+
+    payload = {"schema_version": JSON_SCHEMA_VERSION, "herramienta": "meet-tools", **datos}
+    print(json.dumps(payload, ensure_ascii=False), file=sys.stderr if err else sys.stdout, flush=True)
+
 app = typer.Typer(help="Sistema de control externo para Google Meet.", no_args_is_help=True)
 console = Console()
 
@@ -113,12 +125,16 @@ def _send_cmd_helper(action: Action, uri: str = "ws://127.0.0.1:8765", payload: 
 @app.command()
 def status(
     uri: str = typer.Option("ws://127.0.0.1:8765", "--uri", "-u", help="URI del daemon concentrador"),
+    json_output: bool = typer.Option(False, "--json", help="Emitir el estado como JSON versionado (sin Rich)."),
 ):
     """Consulta y muestra el estado actual consolidado de la sesión de Google Meet."""
     async def _run():
         try:
             async with MeetClient(uri=uri) as client:
                 st = await client.get_state()
+                if json_output:
+                    _emit_json({"estado": st.model_dump()})
+                    return
                 table = Table(title="Estado Consolidado de Google Meet", border_style="cyan")
                 table.add_column("Parámetro", style="bold white")
                 table.add_column("Valor", style="bold")
@@ -134,6 +150,9 @@ def status(
 
                 console.print(table)
         except Exception as e:
+            if json_output:
+                _emit_json({"error": str(e)}, err=True)
+                raise typer.Exit(1)
             console.print(f"[bold red]Error de conexión con el daemon en {uri}:[/bold red] {e}")
 
     asyncio.run(_run())
@@ -181,13 +200,18 @@ def leave(
 @app.command()
 def monitor(
     uri: str = typer.Option("ws://127.0.0.1:8765", "--uri", "-u", help="URI del daemon concentrador"),
+    json_output: bool = typer.Option(False, "--json", help="Emitir cada evento como una línea JSON (NDJSON) versionada."),
 ):
     """Escucha y muestra en tiempo real todos los eventos y telemetría de Meet."""
     async def _run():
-        console.print(f"[cyan]Conectando a {uri} para monitoreo continuo... (Ctrl+C para salir)[/cyan]")
+        if not json_output:
+            console.print(f"[cyan]Conectando a {uri} para monitoreo continuo... (Ctrl+C para salir)[/cyan]")
         try:
             async with MeetClient(uri=uri) as client:
                 async for msg in client.listen_events():
+                    if json_output:
+                        _emit_json({"evento": msg.action, "payload": msg.payload})
+                        continue
                     if msg.action == Action.STATE_SYNC.value:
                         p = msg.payload
                         console.print(
@@ -208,6 +232,9 @@ def monitor(
         except KeyboardInterrupt:
             console.print("\n[yellow]Monitoreo finalizado.[/yellow]")
         except Exception as e:
+            if json_output:
+                _emit_json({"error": str(e)}, err=True)
+                raise typer.Exit(1)
             console.print(f"[bold red]Error durante monitoreo:[/bold red] {e}")
 
     asyncio.run(_run())
