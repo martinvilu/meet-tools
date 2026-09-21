@@ -119,6 +119,26 @@ uv run meet-tools mock-tab --in-call --host
 
 ---
 
+## 🔗 Consumidores e integración con cyberdeck
+
+**Estado real: especificación, no verificado contra un cliente.** El consumidor
+declarado, `cyberdeck` (app Android), existe solo como especificación
+(`cyberdeck/android-spec.md`, que lo lista contra `meet-tools (ws:8765)`); no hay
+cliente implementado ni prueba de integración con este daemon. No se invoca a
+ninguna otra herramienta del ecosistema desde aquí.
+
+Lo que este repo sí garantiza (fijado en `tests/test_contrato_cyberdeck.py`):
+
+- Puerto por defecto del daemon: `8765`.
+- Servicio mDNS publicado: `_meet-bridge._tcp.local.` (propiedad `service=meet`). La spec
+  de cyberdeck describe `_meet-bridge._sub._bridge-remote._tcp.local.`: **esa forma con
+  subtipo no está implementada**; un cliente debe descubrir por el tipo plano.
+- URI de emparejamiento `bridge://pair?v=1.3&host=…&port=8765&service=meet&pin=…&name=…`.
+- Salida `--json` versionada (`schema_version`) en `status` y `monitor` para
+  consumidores externos que no hablen WebSocket.
+
+---
+
 ## 📡 Protocolo de Comunicación (JSON v1.1)
 
 Todos los mensajes transmitidos sobre WebSocket respetan el siguiente esquema base:
