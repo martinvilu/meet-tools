@@ -1,5 +1,7 @@
 # meet-tools
 
+> 📖 **Manual de Usuario:** Para una guía exhaustiva de comandos, banderas, arquitectura y ejemplos, consultá el [Manual de Uso](MANUAL.md).
+
 Sistema de control y monitoreo bidireccional para Google Meet desde dispositivos externos (apps móviles Android y hardware embebido Wi-Fi) mediante una extensión de navegador WebExtensions y un daemon concentrador local/LAN.
 
 Basado en la especificación técnica [spec.md](spec.md) (Versión 1.1).
