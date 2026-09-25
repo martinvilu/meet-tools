@@ -24,7 +24,7 @@ def _emit_json(datos: dict, err: bool = False) -> None:
     payload = {"schema_version": JSON_SCHEMA_VERSION, "herramienta": "meet-tools", **datos}
     print(json.dumps(payload, ensure_ascii=False), file=sys.stderr if err else sys.stdout, flush=True)
 
-app = typer.Typer(help="Sistema de control externo para Google Meet.", no_args_is_help=True)
+app = typer.Typer(context_settings={"help_option_names": ["-h", "--help"]}, help="Sistema de control externo para Google Meet.", no_args_is_help=True)
 console = Console()
 
 
@@ -47,7 +47,7 @@ def main_callback(
 
 @app.command()
 def daemon(
-    host: str = typer.Option("127.0.0.1", "--host", "-h", help="Dirección IP de escucha (127.0.0.1 por defecto; 0.0.0.0 para LAN y loopback)"),
+    host: str = typer.Option("127.0.0.1", "--host", "-H", help="Dirección IP de escucha (127.0.0.1 por defecto; 0.0.0.0 para LAN y loopback)"),
     port: int = typer.Option(8765, "--port", "-p", help="Puerto TCP para el servidor WebSocket"),
     timeout: float = typer.Option(2.5, "--timeout", "-t", help="Timeout para ack de extensión (segundos)"),
     pin: Optional[str] = typer.Option(None, "--pin", help="PIN de seguridad de 4 dígitos (si se omite, se genera aleatorio)"),
@@ -370,7 +370,7 @@ def sign(
 def qr(
     port: int = typer.Option(8765, "--port", "-p", help="Puerto TCP WebSocket"),
     pin: str = typer.Option(..., "--pin", help="PIN de emparejamiento"),
-    host: Optional[str] = typer.Option(None, "--host", "-h", help="IP anfitrión (si se omite, se detecta automáticamente)"),
+    host: Optional[str] = typer.Option(None, "--host", "-H", help="IP anfitrión (si se omite, se detecta automáticamente)"),
 ):
     """Muestra el código QR para emparejamiento directo con la app Android."""
     from meet_tools.discovery import build_pairing_uri, generate_qr_ascii, get_local_ip
