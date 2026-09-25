@@ -50,7 +50,7 @@ def daemon(
     host: str = typer.Option("127.0.0.1", "--host", "-H", help="Dirección IP de escucha (127.0.0.1 por defecto; 0.0.0.0 para LAN y loopback)"),
     port: int = typer.Option(8765, "--port", "-p", help="Puerto TCP para el servidor WebSocket"),
     timeout: float = typer.Option(2.5, "--timeout", "-t", help="Timeout para ack de extensión (segundos)"),
-    pin: Optional[str] = typer.Option(None, "--pin", help="PIN de seguridad de 4 dígitos (si se omite, se genera aleatorio)"),
+    pin: Optional[str] = typer.Option(None, "--pin", help="PIN de seguridad (si se omite, se genera uno de 6 dígitos con un generador criptográfico)"),
     no_pin: bool = typer.Option(False, "--no-pin", help="Desactivar requerimiento de PIN (modo permisivo)"),
     no_mdns: bool = typer.Option(False, "--no-mdns", help="Desactivar anuncio mDNS en la red local"),
     no_qr: bool = typer.Option(False, "--no-qr", help="Ocultar código QR en la consola al iniciar"),

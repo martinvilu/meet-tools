@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import random
+import secrets
 import time
 from typing import Any, Dict, Optional, Set
 import websockets
@@ -24,6 +25,17 @@ from meet_tools.protocol import (
     Source,
     StateSyncPayload,
 )
+
+
+def generar_pin() -> str:
+    """PIN de emparejamiento de 6 dígitos con un generador criptográfico.
+
+    Antes era de 4 dígitos con `random.randint`, que no es apto para
+    secretos (N-MEET-02). La extensión y cyberdeck aceptan de 4 a 12
+    caracteres.
+    """
+    return f"{secrets.randbelow(900_000) + 100_000}"
+
 
 logger = logging.getLogger("meet_tools.daemon")
 
@@ -60,7 +72,7 @@ class MeetDaemon:
         self.port = port
         self.command_timeout = command_timeout
         self.require_pin = require_pin or bool(pin)
-        self.pin = pin or (f"{random.randint(1000, 9999)}" if self.require_pin else None)
+        self.pin = pin or (generar_pin() if self.require_pin else None)
         self.enable_mdns = enable_mdns
 
         self.lan_ip = get_local_ip() if self.host in ("0.0.0.0", "") else self.host
