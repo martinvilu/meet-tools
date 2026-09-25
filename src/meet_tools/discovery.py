@@ -1,30 +1,15 @@
 """Módulo de descubrimiento en red local (mDNS) y utilidades de código QR."""
 
 import logging
-from pathlib import Path
-import sys
 
-try:
-    import cast_tools_common.discovery as _c_disc
-    from cast_tools_common.discovery import (
-        MdnsPublisher as _BaseMdnsPublisher,
-        build_pairing_uri,
-        generate_qr_ascii,
-        generate_qr_svg,
-        get_local_ip,
-    )
-except ImportError:
-    sibling = Path(__file__).resolve().parents[3] / "cast-tools-common" / "src"
-    if sibling.is_dir() and str(sibling) not in sys.path:
-        sys.path.insert(0, str(sibling))
-    import cast_tools_common.discovery as _c_disc
-    from cast_tools_common.discovery import (
-        MdnsPublisher as _BaseMdnsPublisher,
-        build_pairing_uri,
-        generate_qr_ascii,
-        generate_qr_svg,
-        get_local_ip,
-    )
+import cast_tools_common.discovery as _c_disc
+from cast_tools_common.discovery import (
+    MdnsPublisher as _BaseMdnsPublisher,
+    build_pairing_uri,
+    generate_qr_ascii,
+    generate_qr_svg,
+    get_local_ip,
+)
 
 from zeroconf import ServiceInfo
 from zeroconf.asyncio import AsyncZeroconf

@@ -1,16 +1,9 @@
 """Empaquetador de la WebExtension para Google Chrome y Mozilla Firefox."""
 
 from pathlib import Path
-import sys
 from typing import Dict, Optional
 
-try:
-    from cast_tools_common.packer import pack_web_extension
-except ImportError:
-    sibling = Path(__file__).resolve().parents[3] / "cast-tools-common" / "src"
-    if sibling.is_dir() and str(sibling) not in sys.path:
-        sys.path.insert(0, str(sibling))
-    from cast_tools_common.packer import pack_web_extension
+from cast_tools_common.packer import pack_web_extension
 
 
 def package_extension(

@@ -1,24 +1,13 @@
 """Infraestructura para validación y firma digital de WebExtensions con web-ext de Mozilla."""
 
 from pathlib import Path
-import sys
 from typing import Any, Dict, Optional, Tuple
 
-try:
-    from cast_tools_common.signer import (
-        prepare_firefox_staging as _prep_common,
-        run_web_ext_lint,
-        sign_firefox_addon as _sign_common,
-    )
-except ImportError:
-    sibling = Path(__file__).resolve().parents[3] / "cast-tools-common" / "src"
-    if sibling.is_dir() and str(sibling) not in sys.path:
-        sys.path.insert(0, str(sibling))
-    from cast_tools_common.signer import (
-        prepare_firefox_staging as _prep_common,
-        run_web_ext_lint,
-        sign_firefox_addon as _sign_common,
-    )
+from cast_tools_common.signer import (
+    prepare_firefox_staging as _prep_common,
+    run_web_ext_lint,
+    sign_firefox_addon as _sign_common,
+)
 
 DEFAULT_ADDON_ID = "meet-bridge@local.dev"
 

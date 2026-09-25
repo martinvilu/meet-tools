@@ -21,6 +21,15 @@ wheels = [
 ]
 
 [[package]]
+name = "cast-tools-common"
+version = "0.1.0"
+source = { git = "https://github.com/martinvilu/cast-tools-common?rev=152e02a628c49b0676a923c9fefc6c047f7610ef#152e02a628c49b0676a923c9fefc6c047f7610ef" }
+dependencies = [
+    { name = "qrcode" },
+    { name = "zeroconf" },
+]
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 source = { registry = "https://pypi.org/simple" }
@@ -73,6 +82,7 @@ name = "meet-tools"
 version = "1.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "cast-tools-common" },
     { name = "pydantic" },
     { name = "qrcode" },
     { name = "rich" },
@@ -89,6 +99,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cast-tools-common", git = "https://github.com/martinvilu/cast-tools-common?rev=152e02a628c49b0676a923c9fefc6c047f7610ef" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "qrcode", specifier = ">=8.2" },
     { name = "rich", specifier = ">=13.0.0" },
