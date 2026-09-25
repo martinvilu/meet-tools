@@ -26,7 +26,7 @@ jobs:
       - name: Sincronizar dependencias
         run: |
           uv sync --all-extras
-          uv pip install "git+https://github.com/INGCOM-UNRN-P1/cast-tools-common.git"
+          uv pip install "git+https://github.com/martinvilu/cast-tools-common.git"
 
       - name: Ejecutar suite de pruebas
         run: uv run pytest -q
