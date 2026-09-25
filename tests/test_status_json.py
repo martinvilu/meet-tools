@@ -27,5 +27,8 @@ def test_status_json_sin_daemon_sale_1_con_error_json():
 
 
 def test_monitor_declara_json():
+    import re
     res = runner.invoke(app, ["monitor", "--help"])
-    assert "--json" in res.stdout
+    clean_output = re.sub(r"\x1b\[[0-9;]*[a-zA-Z]", "", res.stdout)
+    assert "--json" in clean_output
+

@@ -22,7 +22,12 @@ def test_prepare_staging_manifest(tmp_path):
     assert data["browser_specific_settings"]["gecko"]["data_collection_permissions"]["required"] == ["none"]
 
 
+import shutil
+
+
 def test_web_ext_lint_passes(tmp_path):
+    if not shutil.which("web-ext"):
+        pytest.skip("web-ext no está instalado en el entorno")
     staging = tmp_path / "staging"
     prepare_firefox_staging(
         extension_dir=Path(__file__).resolve().parent.parent / "extension",
@@ -35,6 +40,8 @@ def test_web_ext_lint_passes(tmp_path):
 
 
 def test_sign_dry_run_and_lint_only(tmp_path):
+    if not shutil.which("web-ext"):
+        pytest.skip("web-ext no está instalado en el entorno")
     lint_res = sign_firefox_addon(
         output_dir=tmp_path,
         lint_only=True
@@ -53,6 +60,8 @@ def test_sign_dry_run_and_lint_only(tmp_path):
 
 
 def test_missing_credentials_raises(tmp_path, monkeypatch):
+    if not shutil.which("web-ext"):
+        pytest.skip("web-ext no está instalado en el entorno")
     monkeypatch.delenv("WEB_EXT_API_KEY", raising=False)
     monkeypatch.delenv("WEB_EXT_API_SECRET", raising=False)
     monkeypatch.delenv("AMO_JWT_ISSUER", raising=False)
@@ -60,3 +69,4 @@ def test_missing_credentials_raises(tmp_path, monkeypatch):
 
     with pytest.raises(ValueError, match="Credenciales de Mozilla AMO ausentes"):
         sign_firefox_addon(output_dir=tmp_path, dry_run=False)
+
