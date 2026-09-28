@@ -1,6 +1,6 @@
 [project]
 name = "meet-tools"
-version = "1.1.0"
+version = "1.2.0"
 description = "Sistema de control y monitoreo externo para Google Meet mediante WebExtensions y daemon concentrador."
 readme = "README.md"
 license = {text = "GPL-3.0-or-later"}
