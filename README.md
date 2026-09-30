@@ -197,3 +197,34 @@ Opciones:
 Archivos generados en `dist/`:
 - **`meet-bridge-chrome-v1.1.0.zip`**: Manifiesto optimizado para Chromium.
 - **`meet-bridge-firefox-v1.1.0.xpi`**: Manifiesto adaptado para Firefox MV3 con `browser_specific_settings.gecko`.
+
+<!-- p1:referencia:inicio — generado por p1-tools/scripts/readme_generado.py: no editar a mano -->
+
+## Referencia rápida
+
+### Requisitos
+
+- Python ≥ 3.11 y [uv](https://docs.astral.sh/uv/getting-started/installation/).
+
+### Comandos
+
+| Comando | Descripción |
+|:--|:--|
+| `meet-tools daemon` | Inicia el daemon concentrador WebSocket en primer plano. |
+| `meet-tools status` | Consulta y muestra el estado actual consolidado de la sesión de Google Meet. |
+| `meet-tools mic` | Conmuta el micrófono propio (TOGGLE_MIC). |
+| `meet-tools cam` | Conmuta la cámara propia (TOGGLE_CAM). |
+| `meet-tools hand` | Conmuta levantar/bajar la mano (TOGGLE_HAND). |
+| `meet-tools admit-all` | Acciona 'Admitir a todos' en la sala de espera (ADMIT_ALL). |
+| `meet-tools mute-all` | Acciona 'Silenciar a todos' los participantes (MUTE_ALL). |
+| `meet-tools leave` | Abandona la reunión (LEAVE_CALL). |
+| `meet-tools monitor` | Escucha y muestra en tiempo real todos los eventos y telemetría de Meet. |
+| `meet-tools mock-tab` | Simula una pestaña de Google Meet con la extensión para pruebas locales. |
+| `meet-tools pack` | Empaqueta la extensión WebExtensions para Chrome (.zip) y Firefox (.xpi). |
+| `meet-tools sign` | Valida y firma digitalmente el addon para Firefox utilizando Mozilla web-ext. |
+| `meet-tools qr` | Muestra el código QR para emparejamiento directo con la app Android. |
+| `meet-tools doctor` | Verifica el estado del entorno de MEET-TOOLS (Python, web-ext opcional). |
+
+Ayuda de cada comando: `meet-tools <comando> -h`.
+
+<!-- p1:referencia:fin -->
