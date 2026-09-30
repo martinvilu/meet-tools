@@ -7,7 +7,9 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 import typer
+from yutani.cli import crear_app
 
+from meet_tools import __version__
 from meet_tools.client import MeetClient
 from meet_tools.daemon import MeetDaemon
 from meet_tools.protocol import Action, ErrorCode, Message, MessageType, Source, StateSyncPayload
@@ -24,25 +26,14 @@ def _emit_json(datos: dict, err: bool = False) -> None:
     payload = {"schema_version": JSON_SCHEMA_VERSION, "herramienta": "meet-tools", **datos}
     print(json.dumps(payload, ensure_ascii=False), file=sys.stderr if err else sys.stdout, flush=True)
 
-app = typer.Typer(context_settings={"help_option_names": ["-h", "--help"]}, help="Sistema de control externo para Google Meet.", no_args_is_help=True)
+# Contrato de línea de comandos del ecosistema (-h/--help, --version/-v, errores de datos como
+# mensajes) y textos de Typer en español, desde yutani (N-ECO-14).
+app = crear_app(
+    "meet-tools",
+    __version__,
+    "Sistema de control externo para Google Meet.",
+)
 console = Console()
-
-
-def _version_callback(value: bool) -> None:
-    if value:
-        from meet_tools import __version__
-        console.print(f"[bold cyan]MEET[/bold cyan] versión [bold]{__version__}[/bold]")
-        raise typer.Exit(code=0)
-
-
-@app.callback()
-def main_callback(
-    version: Optional[bool] = typer.Option(
-        None, "--version", "-v", help="Muestra la versión y termina.",
-        callback=_version_callback, is_eager=True,
-    ),
-) -> None:
-    """Opciones globales."""
 
 
 @app.command()
