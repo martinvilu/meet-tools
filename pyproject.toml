@@ -52,9 +52,9 @@ allow-direct-references = true
 packages = ["src/meet_tools"]
 
 [project.urls]
-Homepage = "https://github.com/INGCOM-UNRN-P1/meet-tools"
-Repository = "https://github.com/INGCOM-UNRN-P1/meet-tools.git"
-Issues = "https://github.com/INGCOM-UNRN-P1/meet-tools/issues"
+Homepage = "https://github.com/martinvilu/meet-tools"
+Repository = "https://github.com/martinvilu/meet-tools.git"
+Issues = "https://github.com/martinvilu/meet-tools/issues"
 
 [dependency-groups]
 dev = [
