@@ -198,6 +198,15 @@ Archivos generados en `dist/`:
 - **`meet-bridge-chrome-v1.1.0.zip`**: Manifiesto optimizado para Chromium.
 - **`meet-bridge-firefox-v1.1.0.xpi`**: Manifiesto adaptado para Firefox MV3 con `browser_specific_settings.gecko`.
 
+## Limitaciones
+
+- Solo Google Meet (`meet.google.com`) en un navegador Firefox o Chromium con la extensión cargada.
+- La extensión controla la reunión a través de la página (su content script inspecciona y maneja el
+  DOM de Meet): un cambio en la interfaz de Google puede dejar sin efecto algún comando hasta que se
+  actualice la extensión.
+- Los dispositivos se conectan al daemon por WebSocket dentro de la red local: no hay un servidor en
+  internet.
+
 <!-- p1:referencia:inicio — generado por p1-tools/scripts/readme_generado.py: no editar a mano -->
 
 ## Referencia rápida
@@ -226,5 +235,17 @@ Archivos generados en `dist/`:
 | `meet-tools doctor` | Verifica el estado del entorno de MEET-TOOLS (Python, web-ext opcional). |
 
 Ayuda de cada comando: `meet-tools <comando> -h`.
+
+### Salida JSON
+
+Con `--json`, estos comandos emiten el resultado como JSON por la salida estándar, para usarlo desde scripts, ripley o dredd: `meet-tools status`, `meet-tools monitor`, `meet-tools doctor`. El de `doctor --json` lleva `schema_version` y `ok`.
+
+### Códigos de salida
+
+| Código | Significado |
+|:--|:--|
+| `0` | Terminó bien (en `doctor`: está todo lo requerido). |
+| `1` | El comando encontró problemas (hallazgos, pruebas que fallan, un umbral que no se alcanza) o un dato no se pudo usar (un archivo ilegible, un formato inválido). |
+| `2` | Error de uso: comando, opción o argumento inválido. |
 
 <!-- p1:referencia:fin -->
