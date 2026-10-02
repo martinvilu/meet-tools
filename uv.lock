@@ -106,7 +106,7 @@ requires-dist = [
     { name = "rich", specifier = ">=13.0.0" },
     { name = "typer", specifier = ">=0.12.0" },
     { name = "websockets", specifier = ">=12.0" },
-    { name = "yutani", git = "https://github.com/INGCOM-UNRN-P1/yutani?rev=4b99a428c28ab5f3c3013b770b9692ade6182fc2" },
+    { name = "yutani", git = "https://github.com/INGCOM-UNRN-P1/yutani?rev=31f79c904ac33065cc1c2b9fd34b4c513f0028d9" },
     { name = "zeroconf", specifier = ">=0.151.3" },
 ]
 
@@ -517,7 +517,7 @@ wheels = [
 [[package]]
 name = "yutani"
 version = "0.1.0"
-source = { git = "https://github.com/INGCOM-UNRN-P1/yutani?rev=4b99a428c28ab5f3c3013b770b9692ade6182fc2#4b99a428c28ab5f3c3013b770b9692ade6182fc2" }
+source = { git = "https://github.com/INGCOM-UNRN-P1/yutani?rev=31f79c904ac33065cc1c2b9fd34b4c513f0028d9#31f79c904ac33065cc1c2b9fd34b4c513f0028d9" }
 dependencies = [
     { name = "rich" },
     { name = "typer" },

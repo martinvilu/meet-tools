@@ -35,7 +35,7 @@ dependencies = [
     # nombre no está publicado en PyPI y se instala siempre desde el repositorio.
     "cast-tools-common @ git+https://github.com/martinvilu/cast-tools-common@152e02a628c49b0676a923c9fefc6c047f7610ef",
     # Núcleo común del ecosistema (N-ECO-14): contrato de línea de comandos y textos en español.
-    "yutani @ git+https://github.com/INGCOM-UNRN-P1/yutani@4b99a428c28ab5f3c3013b770b9692ade6182fc2",
+    "yutani @ git+https://github.com/INGCOM-UNRN-P1/yutani@31f79c904ac33065cc1c2b9fd34b4c513f0028d9",
 ]
 
 [project.scripts]
