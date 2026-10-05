@@ -12,15 +12,26 @@ from meet_tools.protocol import Action, ErrorCode, Message, MessageType, Source,
 class MeetClient:
     """Cliente para control y monitoreo externo de Google Meet."""
 
-    def __init__(self, uri: str = "ws://127.0.0.1:8765", timeout: float = 3.0):
+    def __init__(self, uri: str = "ws://127.0.0.1:8765", timeout: float = 3.0, reintentos: int = 3):
         self.uri = uri
         self.timeout = timeout
+        self.reintentos = reintentos
         self._ws: Optional[Any] = None
 
     async def connect(self) -> None:
         """Conecta con el daemon concentrador local o LAN."""
-        # Evitar interferencias con variables de entorno de proxy HTTP/HTTPS
-        self._ws = await connect(self.uri, proxy=None)
+        # Evitar interferencias con variables de entorno de proxy HTTP/HTTPS. Si la red del aula se cae
+        # un momento, reintenta con espera exponencial (QoL #608): 0,5 s, 1 s, 2 s… hasta `reintentos`.
+        espera = 0.5
+        for intento in range(self.reintentos + 1):
+            try:
+                self._ws = await connect(self.uri, proxy=None, open_timeout=self.timeout)
+                return
+            except (OSError, asyncio.TimeoutError, websockets.exceptions.WebSocketException):
+                if intento == self.reintentos:
+                    raise
+                await asyncio.sleep(espera)
+                espera = min(espera * 2, 8.0)
 
     async def close(self) -> None:
         """Cierra la conexión WebSocket."""

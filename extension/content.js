@@ -9,7 +9,19 @@
   let daemonHost = "127.0.0.1";
   let daemonPort = 8765;
   let daemonPin = "";
-  const RECONNECT_INTERVAL_MS = 3000;
+  // Reconexión con espera exponencial (QoL #608): 1 s, 2 s, 4 s… hasta 30 s, con un poco de azar
+  // para que todas las pestañas no reintenten a la vez cuando vuelve la red del aula.
+  const RECONNECT_MIN_MS = 1000;
+  const RECONNECT_MAX_MS = 30000;
+  let reconnectAttempts = 0;
+
+  function scheduleReconnect() {
+    const base = Math.min(RECONNECT_MAX_MS, RECONNECT_MIN_MS * 2 ** reconnectAttempts);
+    const delay = Math.round(base * (0.5 + Math.random() / 2));
+    reconnectAttempts += 1;
+    renderConfigPill(false, `Reconectando en ${Math.ceil(delay / 1000)} s`);
+    setTimeout(connectToDaemon, delay);
+  }
   const STATE_CHECK_INTERVAL_MS = 800;
   const PERMISSION_TIMEOUT_MS = 300;
 
@@ -589,13 +601,13 @@
     try {
       ws = new WebSocket(wsUrl);
     } catch (e) {
-      renderConfigPill(false, "Desconectado");
-      setTimeout(connectToDaemon, RECONNECT_INTERVAL_MS);
+      scheduleReconnect();
       return;
     }
 
     ws.onopen = function () {
       isConnected = true;
+      reconnectAttempts = 0;
       console.log("[MeetBridge] Conectado al daemon en", wsUrl);
       renderConfigPill(true, "Conectado");
 
@@ -623,9 +635,10 @@
     ws.onclose = function () {
       isConnected = false;
       ws = null;
-      renderConfigPill(false, daemonPin ? "Desconectado" : "Configurar PIN");
       if (daemonPin) {
-        setTimeout(connectToDaemon, RECONNECT_INTERVAL_MS);
+        scheduleReconnect();
+      } else {
+        renderConfigPill(false, "Configurar PIN");
       }
     };
 
