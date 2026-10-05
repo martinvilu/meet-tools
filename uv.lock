@@ -22,8 +22,8 @@ wheels = [
 
 [[package]]
 name = "cast-tools-common"
-version = "0.1.0"
-source = { git = "https://github.com/martinvilu/cast-tools-common?rev=152e02a628c49b0676a923c9fefc6c047f7610ef#152e02a628c49b0676a923c9fefc6c047f7610ef" }
+version = "0.1.1"
+source = { git = "https://github.com/martinvilu/cast-tools-common?rev=e3f37334f07d894d81ea541fa45d17f944de9879#e3f37334f07d894d81ea541fa45d17f944de9879" }
 dependencies = [
     { name = "qrcode" },
     { name = "zeroconf" },
@@ -100,13 +100,13 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "cast-tools-common", git = "https://github.com/martinvilu/cast-tools-common?rev=152e02a628c49b0676a923c9fefc6c047f7610ef" },
+    { name = "cast-tools-common", git = "https://github.com/martinvilu/cast-tools-common?rev=e3f37334f07d894d81ea541fa45d17f944de9879" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "qrcode", specifier = ">=8.2" },
     { name = "rich", specifier = ">=13.0.0" },
     { name = "typer", specifier = ">=0.12.0" },
     { name = "websockets", specifier = ">=12.0" },
-    { name = "yutani", git = "https://github.com/INGCOM-UNRN-P1/yutani?rev=31f79c904ac33065cc1c2b9fd34b4c513f0028d9" },
+    { name = "yutani", git = "https://github.com/INGCOM-UNRN-P1/yutani?rev=cf49348fae40d264006fe07dee2cc9e88dd9c934" },
     { name = "zeroconf", specifier = ">=0.151.3" },
 ]
 
@@ -517,7 +517,7 @@ wheels = [
 [[package]]
 name = "yutani"
 version = "0.1.0"
-source = { git = "https://github.com/INGCOM-UNRN-P1/yutani?rev=31f79c904ac33065cc1c2b9fd34b4c513f0028d9#31f79c904ac33065cc1c2b9fd34b4c513f0028d9" }
+source = { git = "https://github.com/INGCOM-UNRN-P1/yutani?rev=cf49348fae40d264006fe07dee2cc9e88dd9c934#cf49348fae40d264006fe07dee2cc9e88dd9c934" }
 dependencies = [
     { name = "rich" },
     { name = "typer" },
