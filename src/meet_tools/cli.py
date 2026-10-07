@@ -143,7 +143,7 @@ def status(
         except Exception as e:
             if json_output:
                 _emit_json({"error": str(e)}, err=True)
-                raise typer.Exit(1)
+                raise typer.Exit(1) from e
             console.print(f"[bold red]Error de conexión con el daemon en {uri}:[/bold red] {e}")
 
     asyncio.run(_run())
@@ -225,7 +225,7 @@ def monitor(
         except Exception as e:
             if json_output:
                 _emit_json({"error": str(e)}, err=True)
-                raise typer.Exit(1)
+                raise typer.Exit(1) from e
             console.print(f"[bold red]Error durante monitoreo:[/bold red] {e}")
 
     asyncio.run(_run())

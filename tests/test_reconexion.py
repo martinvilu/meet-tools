@@ -7,7 +7,7 @@ import pytest
 
 paquete = "meet_tools" if importlib.util.find_spec("meet_tools") else "slide_tools"
 cliente = importlib.import_module(f"{paquete}.client")
-Clase = getattr(cliente, "MeetClient", None) or getattr(cliente, "SlideClient")
+Clase = getattr(cliente, "MeetClient", None) or cliente.SlideClient
 
 
 def test_reintenta_y_despues_falla(monkeypatch):
