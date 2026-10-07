@@ -207,7 +207,8 @@ class MeetDaemon:
             tab_state = msg.payload.get("tabState", "lobby")
             in_call = tab_state == "in_call"
             if tab:
-                tab.tab_id = new_tab_id
+                if new_tab_id is not None:
+                    tab.tab_id = new_tab_id
                 tab.tab_state = tab_state
                 tab.in_call = in_call
             await self._evaluate_concurrency_lock()

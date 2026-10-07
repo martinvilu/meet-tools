@@ -22,8 +22,8 @@ class MdnsPublisher(_BaseMdnsPublisher):
 
     async def start(self) -> bool:
         # Asegurar interoperabilidad con monkeypatching/mocks sobre el módulo local
-        _c_disc.AsyncZeroconf = AsyncZeroconf
-        _c_disc.ServiceInfo = ServiceInfo
+        _c_disc.AsyncZeroconf = AsyncZeroconf  # type: ignore[misc]
+        _c_disc.ServiceInfo = ServiceInfo  # type: ignore[misc]
         return await super().start()
 
 
