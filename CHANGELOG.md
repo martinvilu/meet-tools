@@ -4,6 +4,12 @@ Todos los cambios notables de este proyecto se documentan en este archivo.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/);
 versiones según [SemVer](https://semver.org/lang/es/).
 
+## [1.3.1] - 2026-10-28
+
+### Corregido
+
+- El manifest declara su `content_security_policy` sin `upgrade-insecure-requests`. Sin él, Firefox aplica a las extensiones Manifest V3 un CSP por omisión que convierte `ws://127.0.0.1` en `wss://` en las páginas de la extensión (pasaba en slide-tools, verificado con Firefox 158). La conexión de meet-tools sale del content script en meet.google.com y no se pudo probar sin una cuenta de Google.
+
 ## [1.3.0] - 2026-10-28
 
 ### Seguridad
