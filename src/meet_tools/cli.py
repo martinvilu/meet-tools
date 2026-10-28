@@ -65,7 +65,7 @@ def daemon(
 
     mdns_info = "[bold green]Activo[/bold green] (_meet-bridge._tcp.local.)" if not no_mdns else "[dim]Desactivado[/dim]"
     console.print(Panel.fit(
-        f"[bold cyan]Meet Daemon Concentrador v1.2[/bold cyan]\n"
+        f"[bold cyan]Meet Daemon Concentrador v1.3[/bold cyan]\n"
         f"Escuchando en: [bold green]ws://{host}:{port}[/bold green]\n"
         f"PIN de Emparejamiento: [bold yellow]{server.pin}[/bold yellow] {'(Opcional)' if no_pin else '(Requerido)'}\n"
         f"Descubrimiento mDNS: {mdns_info}\n"

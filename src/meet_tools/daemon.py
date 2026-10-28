@@ -96,7 +96,7 @@ class MeetDaemon:
                 port=self.port,
                 properties={
                     "service": "meet",
-                    "version": "1.1.0",
+                    "version": "1.3.0",
                     "requires_pin": "1" if self.require_pin else "0",
                 },
                 host_ip=self.lan_ip,

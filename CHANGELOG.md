@@ -4,7 +4,7 @@ Todos los cambios notables de este proyecto se documentan en este archivo.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/);
 versiones según [SemVer](https://semver.org/lang/es/).
 
-## [Sin publicar]
+## [1.3.0] - 2026-10-28
 
 ### Seguridad
 
