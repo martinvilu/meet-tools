@@ -119,6 +119,37 @@ uv run meet-tools monitor
 uv run meet-tools mock-tab --in-call --host
 ```
 
+### Atajos de teclado globales
+
+```bash
+meet-tools atajos              # muestra los atajos y si están instalados
+meet-tools atajos --instalar   # los registra en GNOME (Configuración → Teclado)
+meet-tools atajos --quitar
+```
+
+| Atajo | Acción |
+|:--|:--|
+| Ctrl+Alt+M | micrófono |
+| Ctrl+Alt+V | cámara |
+| Ctrl+Alt+H | levantar o bajar la mano |
+| Ctrl+Alt+A | admitir a todos |
+| Ctrl+Alt+S | silenciar a todos |
+
+Funcionan con cualquier ventana enfocada: bajo Wayland ningún programa puede capturar teclas
+globales, así que cada atajo es un atajo del escritorio que corre `meet-tools <comando> --notificar`
+(si algo falla, avisa con una notificación). Fuera de GNOME, `meet-tools atajos` muestra los
+comandos para cargarlos a mano.
+
+### Indicador en la bandeja y registro
+
+`meet-tools bandeja` muestra un círculo verde (en llamada), amarillo (daemon sin llamada) o gris
+(sin daemon). Necesita pystray: `uv tool install --with pystray --with pillow …`, y en GNOME la
+extensión «AppIndicator and KStatusNotifierItem Support». Sin pystray avisa cada cambio con una
+notificación de escritorio.
+
+El daemon registra conexiones, emparejamientos y PIN rechazados en `~/.local/state/p1/cast.log`
+(rotativo, compartido con slide-tools).
+
 ---
 
 ## 🔗 Consumidores e integración con cyberdeck
@@ -140,6 +171,22 @@ Lo que este repo sí garantiza (fijado en `tests/test_contrato_cyberdeck.py`):
   consumidores externos que no hablen WebSocket.
 
 ---
+
+## 🔒 Seguridad del emparejamiento
+
+- **El PIN protege la red del aula.** Una conexión desde el mismo equipo sin origen web (la CLI,
+  un atajo, la bandeja, la extensión) no lo necesita; un dispositivo de la red sí
+  (`PAIR_REQUEST` con `pin`). Contra un daemon de otro equipo, la CLI toma el PIN de
+  `MEET_TOOLS_PIN`.
+- **Token de reconexión.** `PAIRING_SUCCESS` trae `token` y `expiresIn` (8 h). Un `PAIR_REQUEST`
+  con `{"token": …}` en lugar del PIN vuelve a emparejar (la red se cortó, la app se reabrió). Los
+  tokens viven en memoria: reiniciar el daemon los invalida.
+- **Ninguna página web puede conectarse.** Un WebSocket a 127.0.0.1 lo puede abrir cualquier sitio
+  abierto en el navegador; el daemon responde 403 a toda conexión con `Origin` de una página y
+  sólo acepta programas (sin `Origin`) y extensiones.
+- **El PIN y el QR sólo a quien ya está emparejado.** El `STATE_SYNC` inicial a un dispositivo sin
+  emparejar llega con `pin`, `pairingUri` y `qrSvg` en `null`.
+- Cinco PIN equivocados en un minuto bloquean esa IP, también para la extensión.
 
 ## 📡 Protocolo de Comunicación (JSON v1.1)
 
@@ -233,6 +280,8 @@ Archivos generados en `dist/`:
 | `meet-tools sign` | Valida y firma digitalmente el addon para Firefox utilizando Mozilla web-ext. |
 | `meet-tools qr` | Muestra el código QR para emparejamiento directo con la app Android. |
 | `meet-tools doctor` | Verifica el estado del entorno de MEET-TOOLS (Python, web-ext opcional). |
+| `meet-tools atajos` | Atajos de teclado globales: micrófono, cámara, mano, admitir y silenciar a todos. |
+| `meet-tools bandeja` | Indicador en la bandeja del sistema: verde en llamada, amarillo sin llamada, gris sin daemon. |
 
 Ayuda de cada comando: `meet-tools <comando> -h`.
 

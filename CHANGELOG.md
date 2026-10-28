@@ -4,6 +4,28 @@ Todos los cambios notables de este proyecto se documentan en este archivo.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/);
 versiones según [SemVer](https://semver.org/lang/es/).
 
+## [Sin publicar]
+
+### Seguridad
+
+- El daemon mandaba el PIN en el primer mensaje a cualquiera que se conectara, que con eso podía emparejarse: ahora el PIN y el QR sólo van a conexiones emparejadas o locales.
+- Cualquier página web abierta en el navegador podía conectarse al daemon en 127.0.0.1: ahora responde 403 a los WebSocket con `Origin` de una página.
+- La extensión podía probar PIN sin límite: comparte el límite de cinco intentos por minuto.
+- PIN comparado en tiempo constante.
+
+### Agregado
+
+- Token de reconexión en `PAIRING_SUCCESS` (8 h, en memoria) que reemplaza al PIN en `PAIR_REQUEST`.
+- `meet-tools atajos`: atajos de teclado globales (GNOME) para micrófono, cámara, mano, admitir y silenciar a todos; `--notificar` en esos comandos avisa los errores con una notificación.
+- `meet-tools bandeja`: indicador de estado en la bandeja del sistema o notificaciones.
+- Registro rotativo en `~/.local/state/p1/cast.log`.
+- `MeetClient(pin=…)` y la variable `MEET_TOOLS_PIN` para un daemon de otro equipo.
+
+### Corregido
+
+- `meet-tools mic` (y los demás comandos) salían con `ERR_PAIRING_REQUIRED` con la configuración por omisión: el cliente nunca se emparejaba. Una conexión local ya no necesita PIN.
+- `MeetClient.send_command` tomaba como respuesta el primer mensaje que llegara (podía ser un `STATE_SYNC`); ahora espera el ACK o el error.
+
 ## [1.2.0] - 2026-09-28
 
 Primera versión con registro de cambios; lo anterior está en el historial de git.
