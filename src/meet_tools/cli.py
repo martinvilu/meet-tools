@@ -46,11 +46,14 @@ def daemon(
     no_mdns: bool = typer.Option(False, "--no-mdns", help="Desactivar anuncio mDNS en la red local"),
     no_qr: bool = typer.Option(False, "--no-qr", help="Ocultar código QR en la consola al iniciar"),
 ):
-    """Inicia el daemon concentrador WebSocket en primer plano."""
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-    )
+    """Inicia el daemon concentrador WebSocket en primer plano.
+
+    Además de la terminal, registra conexiones, emparejamientos y PIN rechazados en
+    `~/.local/state/p1/cast.log` (rotativo, compartido con slide-tools).
+    """
+    from cast_tools_common.registro import configurar_registro
+
+    ruta_log = configurar_registro("meet-tools")
 
     server = MeetDaemon(
         host=host,
@@ -68,7 +71,8 @@ def daemon(
         f"PIN de Emparejamiento: [bold yellow]{server.pin}[/bold yellow] {'(Opcional)' if no_pin else '(Requerido)'}\n"
         f"Descubrimiento mDNS: {mdns_info}\n"
         f"Conexión LAN: [dim]ws://{server.lan_ip}:{port}[/dim]\n"
-        f"URI Emparejamiento: [cyan]{server.pairing_uri}[/cyan]",
+        f"URI Emparejamiento: [cyan]{server.pairing_uri}[/cyan]\n"
+        f"Registro: [dim]{ruta_log or 'sólo en la terminal'}[/dim]",
         border_style="cyan"
     ))
 
@@ -94,7 +98,15 @@ def daemon(
         console.print("\n[yellow]Daemon detenido por el usuario.[/yellow]")
 
 
-def _send_cmd_helper(action: Action, uri: str = "ws://127.0.0.1:8765", payload: Optional[dict] = None) -> None:
+def _avisar(texto: str) -> None:
+    """Un atajo de teclado no tiene terminal: el error se muestra como notificación."""
+    from cast_tools_common.bandeja import Estado, notificar
+
+    notificar("meet-tools", Estado("sin_navegador", texto))
+
+
+def _send_cmd_helper(action: Action, uri: str = "ws://127.0.0.1:8765", payload: Optional[dict] = None,
+                     notificar: bool = False) -> None:
     async def _run():
         try:
             async with MeetClient(uri=uri) as client:
@@ -105,10 +117,14 @@ def _send_cmd_helper(action: Action, uri: str = "ws://127.0.0.1:8765", payload: 
                     code = resp.payload.get("code", "ERROR")
                     reason = resp.payload.get("reason", "Error desconocido")
                     console.print(f"[bold red]✗ Comando rechazado ({code}):[/bold red] {reason}")
+                    if notificar:
+                        _avisar(reason)
                 else:
                     console.print(f"[cyan]Respuesta recibida:[/cyan] {resp.action} {resp.payload}")
         except Exception as e:
             console.print(f"[bold red]Error de conexión con el daemon en {uri}:[/bold red] {e}")
+            if notificar:
+                _avisar(f"No responde el daemon en {uri}: ¿está corriendo `meet-tools daemon`?")
 
     asyncio.run(_run())
 
@@ -150,33 +166,38 @@ def status(
 
 
 @app.command()
-def mic(uri: str = typer.Option("ws://127.0.0.1:8765", "--uri", "-u")):
+def mic(uri: str = typer.Option("ws://127.0.0.1:8765", "--uri", "-u"),
+        notificar: bool = typer.Option(False, "--notificar", help="Avisar los errores con una notificación (para atajos de teclado).")):
     """Conmuta el micrófono propio (TOGGLE_MIC)."""
-    _send_cmd_helper(Action.TOGGLE_MIC, uri=uri)
+    _send_cmd_helper(Action.TOGGLE_MIC, uri=uri, notificar=notificar)
 
 
 @app.command()
-def cam(uri: str = typer.Option("ws://127.0.0.1:8765", "--uri", "-u")):
+def cam(uri: str = typer.Option("ws://127.0.0.1:8765", "--uri", "-u"),
+        notificar: bool = typer.Option(False, "--notificar", help="Avisar los errores con una notificación (para atajos de teclado).")):
     """Conmuta la cámara propia (TOGGLE_CAM)."""
-    _send_cmd_helper(Action.TOGGLE_CAM, uri=uri)
+    _send_cmd_helper(Action.TOGGLE_CAM, uri=uri, notificar=notificar)
 
 
 @app.command()
-def hand(uri: str = typer.Option("ws://127.0.0.1:8765", "--uri", "-u")):
+def hand(uri: str = typer.Option("ws://127.0.0.1:8765", "--uri", "-u"),
+        notificar: bool = typer.Option(False, "--notificar", help="Avisar los errores con una notificación (para atajos de teclado).")):
     """Conmuta levantar/bajar la mano (TOGGLE_HAND)."""
-    _send_cmd_helper(Action.TOGGLE_HAND, uri=uri)
+    _send_cmd_helper(Action.TOGGLE_HAND, uri=uri, notificar=notificar)
 
 
 @app.command("admit-all")
-def admit_all(uri: str = typer.Option("ws://127.0.0.1:8765", "--uri", "-u")):
+def admit_all(uri: str = typer.Option("ws://127.0.0.1:8765", "--uri", "-u"),
+        notificar: bool = typer.Option(False, "--notificar", help="Avisar los errores con una notificación (para atajos de teclado).")):
     """Acciona 'Admitir a todos' en la sala de espera (ADMIT_ALL)."""
-    _send_cmd_helper(Action.ADMIT_ALL, uri=uri)
+    _send_cmd_helper(Action.ADMIT_ALL, uri=uri, notificar=notificar)
 
 
 @app.command("mute-all")
-def mute_all(uri: str = typer.Option("ws://127.0.0.1:8765", "--uri", "-u")):
+def mute_all(uri: str = typer.Option("ws://127.0.0.1:8765", "--uri", "-u"),
+        notificar: bool = typer.Option(False, "--notificar", help="Avisar los errores con una notificación (para atajos de teclado).")):
     """Acciona 'Silenciar a todos' los participantes (MUTE_ALL)."""
-    _send_cmd_helper(Action.MUTE_ALL, uri=uri)
+    _send_cmd_helper(Action.MUTE_ALL, uri=uri, notificar=notificar)
 
 
 @app.command("leave")
@@ -423,6 +444,71 @@ def doctor_cmd(
     console.print(tabla)
     if not todo_ok:
         raise typer.Exit(code=1)
+
+
+_ATAJOS = [
+    # (subcomando, nombre en GNOME, combinación). Ctrl+Alt con una letra: no choca con GNOME
+    # ni con Slides, y se alcanza con una mano.
+    ("mic", "Meet: micrófono", "<Control><Alt>m"),
+    ("cam", "Meet: cámara", "<Control><Alt>v"),
+    ("hand", "Meet: levantar la mano", "<Control><Alt>h"),
+    ("admit-all", "Meet: admitir a todos", "<Control><Alt>a"),
+    ("mute-all", "Meet: silenciar a todos", "<Control><Alt>s"),
+]
+
+
+def atajos_de_meet(uri: str = "ws://127.0.0.1:8765") -> list:
+    from cast_tools_common.atajos import Atajo, comando_de
+
+    return [Atajo(f"p1-meet-{sub}", nombre, comando_de("meet-tools", sub, "--uri", uri, "--notificar"), combinacion)
+            for sub, nombre, combinacion in _ATAJOS]
+
+
+@app.command("atajos")
+def atajos_cmd(
+    instalar: bool = typer.Option(False, "--instalar", help="Registrarlos como atajos personalizados de GNOME."),
+    quitar: bool = typer.Option(False, "--quitar", help="Quitar los atajos de meet-tools de GNOME."),
+    uri: str = typer.Option("ws://127.0.0.1:8765", "--uri", "-u", help="URI del daemon que van a usar los atajos."),
+):
+    """Atajos de teclado globales: micrófono, cámara, mano, admitir y silenciar a todos.
+
+    Funcionan con cualquier ventana enfocada (la terminal, las diapositivas): cada atajo corre
+    `meet-tools <comando> --notificar`, que avisa con una notificación si algo falla. En GNOME
+    se instalan con --instalar; en otros escritorios se muestran para cargarlos a mano.
+    """
+    from cast_tools_common.atajos import gestionar
+
+    if instalar and quitar:
+        raise typer.BadParameter("--instalar y --quitar no van juntos.")
+    accion = "instalar" if instalar else ("quitar" if quitar else "mostrar")
+    for linea in gestionar(atajos_de_meet(uri), "p1-meet-", accion):
+        console.print(linea, markup=False, highlight=False)
+
+
+def evaluar_estado_meet(payload: dict) -> tuple:
+    """Para la bandeja: (navegador con una llamada activa, texto)."""
+    if payload.get("locked"):
+        return False, "Bloqueado: hay varias reuniones abiertas"
+    if payload.get("inCall"):
+        return True, f"En llamada ({payload.get('participantCount', 0)} participantes)"
+    return False, "Daemon activo, sin llamada en el navegador"
+
+
+@app.command("bandeja")
+def bandeja_cmd(
+    uri: str = typer.Option("ws://127.0.0.1:8765", "--uri", "-u", help="URI del daemon."),
+    notificaciones: bool = typer.Option(False, "--notificaciones", help="Avisar con notificaciones aunque esté pystray."),
+):
+    """Indicador en la bandeja del sistema: verde en llamada, amarillo sin llamada, gris sin daemon.
+
+    Usa pystray (extra `bandeja` de cast-tools-common; en GNOME, con la extensión AppIndicator).
+    Sin pystray, avisa cada cambio con una notificación de escritorio.
+    """
+    from cast_tools_common.bandeja import correr
+    from cast_tools_common.registro import configurar_registro
+
+    configurar_registro("meet-tools", terminal=False)
+    correr("meet-tools", uri, evaluar_estado_meet, forzar_notificaciones=notificaciones)
 
 
 def main():
