@@ -23,9 +23,10 @@ wheels = [
 [[package]]
 name = "cast-tools-common"
 version = "0.1.1"
-source = { git = "https://github.com/martinvilu/cast-tools-common?rev=e3f37334f07d894d81ea541fa45d17f944de9879#e3f37334f07d894d81ea541fa45d17f944de9879" }
+source = { git = "https://github.com/martinvilu/cast-tools-common?rev=ae23dd31b0da7f04637cf8b15e6b83b11c4af30c#ae23dd31b0da7f04637cf8b15e6b83b11c4af30c" }
 dependencies = [
     { name = "qrcode" },
+    { name = "websockets" },
     { name = "zeroconf" },
 ]
 
@@ -100,7 +101,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "cast-tools-common", git = "https://github.com/martinvilu/cast-tools-common?rev=e3f37334f07d894d81ea541fa45d17f944de9879" },
+    { name = "cast-tools-common", git = "https://github.com/martinvilu/cast-tools-common?rev=ae23dd31b0da7f04637cf8b15e6b83b11c4af30c" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "qrcode", specifier = ">=8.2" },
     { name = "rich", specifier = ">=13.0.0" },
