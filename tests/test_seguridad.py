@@ -107,3 +107,18 @@ async def test_la_extension_de_otro_equipo_necesita_pin_y_tiene_limite():
         assert daemon.active_tabs_count == 0
     finally:
         await daemon.stop()
+
+
+@pytest.mark.asyncio
+async def test_la_extension_conecta_desde_la_pagina_de_meet():
+    """content.js abre el WebSocket con el Origin de meet.google.com: es local y de confianza."""
+    daemon, uri = await _daemon()
+    try:
+        async with connect(uri, proxy=None, origin="https://meet.google.com") as ext:
+            assert (await _recibir(ext)).payload["pin"] == "482913"
+            await ext.send(Message(source=Source.EXTENSION, type=MessageType.EVENT, action=Action.TAB_REGISTER.value,
+                                   payload={"tabId": "t1", "tabState": "in_call"}).to_json())
+            await asyncio.sleep(0.1)
+            assert daemon.active_tabs_count == 1
+    finally:
+        await daemon.stop()

@@ -10,11 +10,15 @@ from cast_tools_common.seguridad import (
     LimitadorIntentos,
     TokensEfimeros,
     conexion_local_confiable,
+    filtro_de_origen,
     generar_pin,
     ip_remota,
     pin_correcto,
-    rechazar_origen_web,
 )
+
+# El content script de la extensión abre el WebSocket desde la página de Meet: el navegador
+# manda ese Origin, no el de la extensión.
+ORIGENES_EXTENSION = ("https://meet.google.com",)
 
 from meet_tools.discovery import (
     MdnsPublisher,
@@ -137,7 +141,7 @@ class MeetDaemon:
         logger.info(f"Iniciando MeetDaemon en ws://{self.host}:{self.port}{pin_info}")
         # Un WebSocket a 127.0.0.1 lo puede abrir cualquier página: sólo programas y extensiones.
         self._server = await serve(self._handle_connection, self.host, self.port,
-                                   process_request=rechazar_origen_web)
+                                   process_request=filtro_de_origen(*ORIGENES_EXTENSION))
         if self._mdns_publisher:
             await self._mdns_publisher.start()
 
@@ -156,7 +160,7 @@ class MeetDaemon:
     def _autenticado(self, websocket: Any) -> bool:
         if not self.require_pin or websocket in self._authenticated_sockets:
             return True
-        return self.confiar_en_local and conexion_local_confiable(websocket)
+        return self.confiar_en_local and conexion_local_confiable(websocket, ORIGENES_EXTENSION)
 
     def _credenciales_validas(self, payload: Dict[str, Any]) -> bool:
         """PIN correcto o token de reconexión vigente."""

@@ -183,7 +183,8 @@ Lo que este repo sí garantiza (fijado en `tests/test_contrato_cyberdeck.py`):
   tokens viven en memoria: reiniciar el daemon los invalida.
 - **Ninguna página web puede conectarse.** Un WebSocket a 127.0.0.1 lo puede abrir cualquier sitio
   abierto en el navegador; el daemon responde 403 a toda conexión con `Origin` de una página y
-  sólo acepta programas (sin `Origin`) y extensiones.
+  sólo acepta programas (sin `Origin`), extensiones y `https://meet.google.com` (el content
+  script de la extensión abre el WebSocket desde la página de Meet).
 - **El PIN y el QR sólo a quien ya está emparejado.** El `STATE_SYNC` inicial a un dispositivo sin
   emparejar llega con `pin`, `pairingUri` y `qrSvg` en `null`.
 - Cinco PIN equivocados en un minuto bloquean esa IP, también para la extensión.
