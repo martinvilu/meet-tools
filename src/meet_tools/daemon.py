@@ -1,13 +1,20 @@
 """Daemon concentrador WebSocket para control de Google Meet y gestión de concurrencia."""
 
 import asyncio
-import json
 import logging
-import secrets
-import time
 from typing import Any, Dict, Optional, Set
 import websockets
 from websockets.asyncio.server import Server, serve
+
+from cast_tools_common.seguridad import (
+    LimitadorIntentos,
+    TokensEfimeros,
+    conexion_local_confiable,
+    generar_pin,
+    ip_remota,
+    pin_correcto,
+    rechazar_origen_web,
+)
 
 from meet_tools.discovery import (
     MdnsPublisher,
@@ -26,14 +33,8 @@ from meet_tools.protocol import (
 )
 
 
-def generar_pin() -> str:
-    """PIN de emparejamiento de 6 dígitos con un generador criptográfico.
-
-    Antes era de 4 dígitos con `random.randint`, que no es apto para
-    secretos (N-MEET-02). La extensión y cyberdeck aceptan de 4 a 12
-    caracteres.
-    """
-    return f"{secrets.randbelow(900_000) + 100_000}"
+# generar_pin vive en cast-tools-common (Ola 24); se reexporta para quien lo importaba de acá.
+__all__ = ["MeetDaemon", "TabSession", "generar_pin"]
 
 
 logger = logging.getLogger("meet_tools.daemon")
@@ -66,8 +67,12 @@ class MeetDaemon:
         pin: Optional[str] = None,
         require_pin: bool = False,
         enable_mdns: bool = True,
+        confiar_en_local: bool = True,
     ):
+        """`confiar_en_local`: una conexión desde este equipo sin origen web (la CLI, un atajo de
+        teclado, la bandeja, la extensión) no necesita PIN; el PIN protege la red del aula."""
         self.host = host
+        self.confiar_en_local = confiar_en_local
         self.port = port
         self.command_timeout = command_timeout
         self.require_pin = require_pin or bool(pin)
@@ -101,7 +106,8 @@ class MeetDaemon:
         self._is_locked: bool = False
         self._pending_commands: Dict[str, asyncio.Future] = {}
         self._cmd_counter: int = 0
-        self._failed_pin_attempts: Dict[str, list] = {}
+        self._intentos = LimitadorIntentos()
+        self._tokens = TokensEfimeros()
         self._latest_consolidated_state: StateSyncPayload = StateSyncPayload(
             inCall=False,
             locked=False,
@@ -129,7 +135,9 @@ class MeetDaemon:
         """Inicia el servidor WebSocket concentrador y mDNS."""
         pin_info = f" (PIN: {self.pin})" if self.pin else ""
         logger.info(f"Iniciando MeetDaemon en ws://{self.host}:{self.port}{pin_info}")
-        self._server = await serve(self._handle_connection, self.host, self.port)
+        # Un WebSocket a 127.0.0.1 lo puede abrir cualquier página: sólo programas y extensiones.
+        self._server = await serve(self._handle_connection, self.host, self.port,
+                                   process_request=rechazar_origen_web)
         if self._mdns_publisher:
             await self._mdns_publisher.start()
 
@@ -144,6 +152,15 @@ class MeetDaemon:
         self._tabs.clear()
         self._ws_to_tab_id.clear()
         self._clients.clear()
+
+    def _autenticado(self, websocket: Any) -> bool:
+        if not self.require_pin or websocket in self._authenticated_sockets:
+            return True
+        return self.confiar_en_local and conexion_local_confiable(websocket)
+
+    def _credenciales_validas(self, payload: Dict[str, Any]) -> bool:
+        """PIN correcto o token de reconexión vigente."""
+        return pin_correcto(payload.get("pin"), self.pin) or self._tokens.validar(payload.get("token")) is not None
 
     async def _handle_connection(self, websocket: Any) -> None:
         """Punto de entrada de nuevas conexiones entrantes."""
@@ -194,13 +211,15 @@ class MeetDaemon:
         tab = self._tabs.get(tab_id) if tab_id else None
 
         if msg.action == Action.TAB_REGISTER.value:
-            if self.require_pin:
-                ext_pin = str(msg.payload.get("pin", "")).strip()
-                if ext_pin != str(self.pin).strip():
-                    logger.warning("Extensión rechazada: PIN inválido.")
+            if self.require_pin and not self._autenticado(websocket):
+                ip = ip_remota(websocket)
+                if self._intentos.bloqueada(ip) or not self._credenciales_validas(msg.payload):
+                    self._intentos.fallo(ip)
+                    logger.warning("Extensión rechazada desde %s: PIN inválido.", ip)
                     err = Message.error("PIN de emparejamiento incorrecto para la extensión.", ErrorCode.ERR_INVALID_PIN)
                     await websocket.send(err.to_json())
                     return
+                self._intentos.exito(ip)
                 self._authenticated_sockets.add(websocket)
 
             new_tab_id = msg.payload.get("tabId", tab_id)
@@ -214,7 +233,7 @@ class MeetDaemon:
             await self._evaluate_concurrency_lock()
             return
 
-        if self.require_pin and websocket not in self._authenticated_sockets:
+        if not self._autenticado(websocket):
             logger.warning("Mensaje de extensión rechazado: socket no autenticado mediante PIN.")
             err = Message.error("Extensión no autenticada mediante PIN.", ErrorCode.ERR_PAIRING_REQUIRED)
             await websocket.send(err.to_json())
@@ -262,40 +281,38 @@ class MeetDaemon:
             return
 
         if msg.action == Action.PAIR_REQUEST.value:
-            remote_addr = getattr(websocket, "remote_address", None)
-            client_ip = remote_addr[0] if (remote_addr and isinstance(remote_addr, (list, tuple))) else "127.0.0.1"
+            client_ip = ip_remota(websocket) or "127.0.0.1"
 
-            now = time.time()
-            attempts = [t for t in self._failed_pin_attempts.get(client_ip, []) if now - t < 60]
-            self._failed_pin_attempts[client_ip] = attempts
-
-            if len(attempts) >= 5:
+            if self._intentos.bloqueada(client_ip):
                 logger.warning(f"Intento de emparejamiento bloqueado por rate limit para {client_ip}")
                 err = Message.error("Demasiados intentos fallidos de PIN. Intente nuevamente más tarde.", ErrorCode.ERR_INVALID_PIN)
                 await websocket.send(err.to_json())
                 return
 
-            req_pin = str(msg.payload.get("pin", "")).strip()
-            if not self.require_pin or req_pin == str(self.pin).strip():
-                if client_ip in self._failed_pin_attempts:
-                    del self._failed_pin_attempts[client_ip]
+            if not self.require_pin or self._credenciales_validas(msg.payload):
+                self._intentos.exito(client_ip)
                 self._authenticated_sockets.add(websocket)
+                # Token para reconectarse (red que se corta, pestaña que se recarga) sin volver a pedir el PIN.
+                token = self._tokens.emitir(client_ip)
+                logger.info("Cliente emparejado desde %s", client_ip)
                 ack = Message(
                     source=Source.DAEMON,
                     type=MessageType.EVENT,
                     action=Action.PAIRING_SUCCESS.value,
-                    payload={"status": "ok"}
+                    payload={"status": "ok", "token": token, "expiresIn": int(self._tokens.duracion)}
                 )
                 await websocket.send(ack.to_json())
+                await self._send_state_to_client(websocket)
             else:
-                self._failed_pin_attempts.setdefault(client_ip, []).append(now)
+                self._intentos.fallo(client_ip)
+                logger.warning("PIN incorrecto desde %s", client_ip)
                 await asyncio.sleep(1.0)
                 err = Message.error("PIN de emparejamiento incorrecto.", ErrorCode.ERR_INVALID_PIN)
                 await websocket.send(err.to_json())
             return
 
         if msg.type == MessageType.COMMAND:
-            if self.require_pin and websocket not in self._authenticated_sockets:
+            if not self._autenticado(websocket):
                 err = Message.error("Emparejamiento requerido mediante PIN.", ErrorCode.ERR_PAIRING_REQUIRED)
                 await websocket.send(err.to_json())
                 return
@@ -410,9 +427,12 @@ class MeetDaemon:
         state.locked = self._is_locked
         if not self._is_locked and self.active_tabs_count == 0:
             state.inCall = False
-        state.pin = self.pin
-        state.pairingUri = self.pairing_uri
-        state.qrSvg = self.qr_svg
+        # El PIN y el QR sólo a quien ya está emparejado (o es local): antes se le mandaban a
+        # cualquiera que abriera la conexión, y con eso podía emparejarse.
+        visible = self._autenticado(websocket)
+        state.pin = self.pin if visible else None
+        state.pairingUri = self.pairing_uri if visible else None
+        state.qrSvg = self.qr_svg if visible else None
         msg = Message.state_sync(state, source=Source.DAEMON)
         try:
             await websocket.send(msg.to_json())
@@ -420,12 +440,14 @@ class MeetDaemon:
             pass
 
     async def _broadcast_to_clients(self, message: Message) -> None:
-        """Retransmite un mensaje a todos los clientes externos conectados."""
+        """Retransmite un mensaje a los clientes externos emparejados (o locales)."""
         if not self._clients:
             return
         raw = message.to_json()
         to_remove = set()
-        for client in self._clients:
+        for client in list(self._clients):
+            if not self._autenticado(client):
+                continue
             try:
                 await client.send(raw)
             except Exception:

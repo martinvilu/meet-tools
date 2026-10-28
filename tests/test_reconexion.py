@@ -25,4 +25,6 @@ def test_reintenta_y_despues_falla(monkeypatch):
     monkeypatch.setattr(cliente.asyncio, "sleep", dormir)
     with pytest.raises(OSError):
         asyncio.run(Clase(uri="ws://127.0.0.1:1", reintentos=3).connect())
-    assert len(intentos) == 4 and esperas == [0.5, 1.0, 2.0]
+    # Espera exponencial con ±20 % de azar (cast-tools-common), para no reintentar todos a la vez.
+    assert len(intentos) == 4 and len(esperas) == 3
+    assert all(0.8 * base <= e <= 1.2 * base for e, base in zip(esperas, [0.5, 1.0, 2.0], strict=True))

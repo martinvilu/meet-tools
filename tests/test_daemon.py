@@ -174,7 +174,7 @@ async def test_permission_denied_event_forwarding(daemon_server):
 
 @pytest.mark.asyncio
 async def test_daemon_pin_authentication():
-    daemon = MeetDaemon(host="127.0.0.1", port=0, pin="4321", require_pin=True)
+    daemon = MeetDaemon(host="127.0.0.1", port=0, pin="4321", require_pin=True, confiar_en_local=False)
     await daemon.start()
     port = daemon._server.sockets[0].getsockname()[1]
     uri = f"ws://127.0.0.1:{port}"
@@ -236,7 +236,7 @@ async def test_daemon_pin_authentication():
 
 @pytest.mark.asyncio
 async def test_daemon_pin_rate_limiting():
-    daemon = MeetDaemon(host="127.0.0.1", port=0, require_pin=True, pin="4321")
+    daemon = MeetDaemon(host="127.0.0.1", port=0, require_pin=True, pin="4321", confiar_en_local=False)
     await daemon.start()
     port = daemon._server.sockets[0].getsockname()[1]
     uri = f"ws://127.0.0.1:{port}"

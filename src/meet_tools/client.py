@@ -6,32 +6,54 @@ from typing import Any, AsyncGenerator, Dict, Optional
 import websockets
 from websockets.asyncio.client import connect
 
+from cast_tools_common.reconexion import con_reintentos
+
 from meet_tools.protocol import Action, ErrorCode, Message, MessageType, Source, StateSyncPayload
 
 
 class MeetClient:
     """Cliente para control y monitoreo externo de Google Meet."""
 
-    def __init__(self, uri: str = "ws://127.0.0.1:8765", timeout: float = 3.0, reintentos: int = 3):
+    def __init__(self, uri: str = "ws://127.0.0.1:8765", timeout: float = 3.0, reintentos: int = 3,
+                 pin: Optional[str] = None):
+        """`pin` (o la variable MEET_TOOLS_PIN) hace falta sólo contra un daemon de otro equipo: desde
+        el mismo equipo la conexión es de confianza. Al emparejarse, el daemon devuelve un token que
+        el cliente usa para reconectarse sin el PIN."""
         self.uri = uri
         self.timeout = timeout
         self.reintentos = reintentos
+        self.pin = pin or os.environ.get("MEET_TOOLS_PIN") or None
+        self.token: Optional[str] = None
         self._ws: Optional[Any] = None
 
     async def connect(self) -> None:
         """Conecta con el daemon concentrador local o LAN."""
         # Evitar interferencias con variables de entorno de proxy HTTP/HTTPS. Si la red del aula se cae
         # un momento, reintenta con espera exponencial (QoL #608): 0,5 s, 1 s, 2 s… hasta `reintentos`.
-        espera = 0.5
-        for intento in range(self.reintentos + 1):
-            try:
-                self._ws = await connect(self.uri, proxy=None, open_timeout=self.timeout)
+        self._ws = await con_reintentos(
+            lambda: connect(self.uri, proxy=None, open_timeout=self.timeout),
+            self.reintentos,
+            errores=(OSError, asyncio.TimeoutError, websockets.exceptions.WebSocketException),
+        )
+        if self.pin or self.token:
+            await self.pair()
+
+    async def pair(self) -> None:
+        """Se empareja con el token (si ya lo tiene) o con el PIN; guarda el token nuevo."""
+        assert self._ws is not None
+        credenciales = {"token": self.token} if self.token else {"pin": self.pin}
+        await self._ws.send(Message.command(Action.PAIR_REQUEST, credenciales).to_json())
+        while True:
+            resp = Message.from_json(await asyncio.wait_for(self._ws.recv(), timeout=self.timeout + 1.5))
+            if resp.action == Action.PAIRING_SUCCESS.value:
+                self.token = resp.payload.get("token") or self.token
                 return
-            except (OSError, asyncio.TimeoutError, websockets.exceptions.WebSocketException):
-                if intento == self.reintentos:
-                    raise
-                await asyncio.sleep(espera)
-                espera = min(espera * 2, 8.0)
+            if resp.type == MessageType.ERROR:
+                if self.token and self.pin:  # token vencido o daemon reiniciado: probar con el PIN
+                    self.token = None
+                    await self._ws.send(Message.command(Action.PAIR_REQUEST, {"pin": self.pin}).to_json())
+                    continue
+                raise RuntimeError(f"Emparejamiento rechazado ({resp.payload.get('code')}): {resp.payload.get('reason')}")
 
     async def close(self) -> None:
         """Cierra la conexión WebSocket."""
@@ -68,19 +90,14 @@ class MeetClient:
         if not self._ws:
             raise RuntimeError("Cliente no conectado.")
 
-        # Drenar saludo inicial si es la primera lectura
-        try:
-            raw_initial = await asyncio.wait_for(self._ws.recv(), timeout=0.2)
-            init_msg = Message.from_json(raw_initial)
-            # Saludo inicial consumido
-        except asyncio.TimeoutError:
-            pass
-
         cmd = Message.command(action, payload=payload or {}, source=Source.CLIENT)
         await self._ws.send(cmd.to_json())
 
-        resp_raw = await asyncio.wait_for(self._ws.recv(), timeout=self.timeout)
-        return Message.from_json(resp_raw)
+        # El saludo, los STATE_SYNC y los eventos que llegan en el medio no son la respuesta.
+        while True:
+            resp = Message.from_json(await asyncio.wait_for(self._ws.recv(), timeout=self.timeout))
+            if resp.type in (MessageType.ACK.value, MessageType.ERROR.value):
+                return resp
 
     async def listen_events(self) -> AsyncGenerator[Message, None]:
         """Escucha eventos y actualizaciones de estado en tiempo real."""
