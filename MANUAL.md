@@ -66,7 +66,7 @@ Inicia el daemon concentrador WebSocket en primer plano.
 | :--- | :--- | :--- | :--- |
 | `--host`, `-h` | `<class 'str'>` | `127.0.0.1` | Dirección IP de escucha (127.0.0.1 por defecto; 0.0.0.0 para LAN y loopback) |
 | `--port`, `-p` | `<class 'int'>` | `8765` | Puerto TCP para el servidor WebSocket |
-| `--timeout`, `-t` | `<class 'float'>` | `2.5` | Timeout para ack de extensión (segundos) |
+| `--timeout`, `-t` | `<class 'float'>` | `2.5` | Tiempo límite para la confirmación de la extensión (segundos) |
 | `--pin` | `Optional[str]` | `None` | PIN de seguridad de 4 dígitos (si se omite, se genera aleatorio) |
 | `--no-pin` | `<class 'bool'>` | `False` | Desactivar requerimiento de PIN (modo permisivo) |
 | `--no-mdns` | `<class 'bool'>` | `False` | Desactivar anuncio mDNS en la red local |
